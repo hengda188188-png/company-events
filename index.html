@@ -935,7 +935,7 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 
 /* ===== 版本號：每次修改都會更新，方便確認 GitHub 上是不是最新版 ===== */
-const APP_VERSION = "v30.1.0";
+const APP_VERSION = "v30.2.0";
 document.getElementById("versionTag").textContent = APP_VERSION;
 console.log("公司-线上小活动", APP_VERSION);
 
@@ -1858,6 +1858,7 @@ function maybeClaimHost() {
   if (!hostNeedsMigration) {
     if (hostMigrationTimer) { clearTimeout(hostMigrationTimer); hostMigrationTimer = null; }
   if (bingoPlayoffTimer) { clearTimeout(bingoPlayoffTimer); bingoPlayoffTimer = null; }
+  clearOfflineSkip();
     return;
   }
   if (!iAmOnline) return;
@@ -1964,6 +1965,7 @@ function subscribeRoom() {
     renderCardZone();
     renderScorePanel();
     renderScoreModal();
+    maybeAutoSkipOffline();
     maybeBingoPlayoff();
     forceBingoWinner();
     writeRoundAwards();
@@ -1998,6 +2000,7 @@ function subscribeRoom() {
     syncRuleInputs(roomMeta.gameState || "lobby");
     writeRoundAwards();
     reviveLotteryIfStuck();
+    maybeAutoSkipOffline();
     maybeClaimHost();
     const mine = players[myUid];
     // 一定要無條件同步：開新局時資料庫的 brag 被清成 null，
@@ -3023,7 +3026,9 @@ function renderTurnHint() {
       const uid = currentTurnUid();
       const p = uid && players[uid];
       turnHintEl.className = "turn-hint";
-      turnHintEl.textContent = p ? `🌟 ${p.name}，請掀一個杯子 🌟` : "";
+      turnHintEl.textContent = p
+        ? (p.online === true ? `🌟 ${p.name}，請掀一個杯子 🌟` : `⏳ 等 ${p.name} 回來（離線太久會自動跳過）`)
+        : "";
       skipTurnBtn.classList.toggle("hidden", !(isHost && p && p.online !== true));
       numberZoneEl.classList.toggle("my-turn", uid === myUid);
       return;
@@ -3057,16 +3062,23 @@ function renderTurnHint() {
   turnHintEl.className = "turn-hint";
   const playoff = gt === "bingo" && (roomMeta.bingoRound || 1) > 1 ? "⚔️加賽 " : "";
   const action = gt === "password" ? "請猜數字" : gt === "blackjack" ? "要牌或停牌" : "請選號";
-  turnHintEl.textContent = p ? `${playoff}🌟 ${p.name}，${action} 🌟` : "";
+  turnHintEl.textContent = p
+    ? (p.online === true ? `${playoff}🌟 ${p.name}，${action} 🌟` : `⏳ 等 ${p.name} 回來（離線太久會自動跳過）`)
+    : "";
   skipTurnBtn.classList.toggle("hidden", !(isHost && p && p.online !== true));
   numberZoneEl.classList.toggle("my-turn", uid === myUid);
 }
-skipTurnBtn.addEventListener("click", async () => {
+skipTurnBtn.addEventListener("click", () => skipCurrentPlayer(false));
+
+/* 跳過目前這個玩家。auto = 系統偵測離線太久自動跳過（非房主手動） */
+async function skipCurrentPlayer(auto) {
   if (!isHost || !currentRoomId) return;
   const uid = currentTurnUid();
   const p = uid && players[uid];
   const gt = gameType();
-  pushLog(`房主跳過了 ${p ? p.name : "離線玩家"}（離線中）`);
+  pushLog(auto
+    ? `⏭️ ${p ? p.name : "某位玩家"} 離線太久，系統自動跳過`
+    : `房主跳過了 ${p ? p.name : "離線玩家"}（離線中）`);
 
   if ((gt === "niuniu" || gt === "compare")) {
     // 把所有離線又還沒開牌的人代為開牌，讓結算得以進行
@@ -3100,13 +3112,44 @@ skipTurnBtn.addEventListener("click", async () => {
     return;
   }
   if (gt === "lottery") {
-    // 用正規的推進邏輯（會跳過已達上限者），單純 +1 會落在掀不了的人身上而死鎖
+    // 記錄他被跳過，否則輪次繞一圈又會回到這個離線的人身上
+    if (uid) await update(ref(db, `rooms/${currentRoomId}/lotteryState/skipped`), { [uid]: true });
     await advanceLotteryTurn(lotState);
     await reviveLotteryIfStuck();
     return;
   }
   await runTransaction(ref(db, `rooms/${currentRoomId}/meta/turnIndex`), (v) => (v || 0) + 1);
-});
+}
+
+/* 離線玩家卡住輪次時自動跳過。
+   給 12 秒緩衝，避免只是重新整理網頁就被判出局；
+   房主也可以不等直接按「跳過此玩家」。 */
+let offlineSkipTimer = null;
+let offlineSkipUid = null;
+function clearOfflineSkip() {
+  if (offlineSkipTimer) { clearTimeout(offlineSkipTimer); offlineSkipTimer = null; }
+  offlineSkipUid = null;
+}
+function maybeAutoSkipOffline() {
+  if (!isHost || !currentRoomId) { clearOfflineSkip(); return; }
+  if ((roomMeta.gameState || "lobby") !== "playing" || !usesTurnOrder()) { clearOfflineSkip(); return; }
+
+  const uid = currentTurnUid();
+  const p = uid && players[uid];
+  if (!uid || !p || p.online === true) { clearOfflineSkip(); return; }
+  if (offlineSkipUid === uid && offlineSkipTimer) return;   // 已經在倒數了
+
+  clearOfflineSkip();
+  offlineSkipUid = uid;
+  offlineSkipTimer = setTimeout(async () => {
+    offlineSkipTimer = null;
+    const cur = currentTurnUid();
+    const cp = cur && players[cur];
+    if (cur !== uid || !cp || cp.online === true) { offlineSkipUid = null; return; }   // 他回來了
+    offlineSkipUid = null;
+    await skipCurrentPlayer(true);
+  }, 12000);
+}
 
 /* ===== 號碼渲染 / 點擊 ===== */
 function isMyTurn() {
@@ -3967,15 +4010,23 @@ function lotPickCounts(picks) {
   Object.values(picks || {}).forEach(p => { counts[p.uid] = (counts[p.uid] || 0) + 1; });
   return counts;
 }
+/* 這一輪還能不能掀杯：沒被跳過、而且還沒掀滿 */
+function lotCanStillPick(uid, picks) {
+  if ((lotState.skipped || {})[uid]) return false;
+  const limit = roomMeta.lotPickLimit ?? 1;
+  if (limit === 0) return true;
+  return (lotPickCounts(picks || lotState.picks)[uid] || 0) < limit;
+}
+
 function canPickCup() {
   if (gameType() !== "lottery") return false;
   if (!currentRoomId || (roomMeta.gameState || "lobby") !== "playing") return false;
+  if ((lotState.skipped || {})[myUid]) return false;   // 已經被跳過，這一輪不再參與
   // 杯子數是照「開局時的參加人數」配的，中途加入的旁觀者不能來搶，
   // 否則原本被保證有杯子可掀的人會沒得掀
   const me = players[myUid];
   if (!me || me.order == null) return false;
-  const limit = roomMeta.lotPickLimit ?? 1;
-  if (limit > 0 && (lotPickCounts(lotState.picks)[myUid] || 0) >= limit) return false;
+  if (!lotCanStillPick(myUid)) return false;
   if ((roomMeta.lotPickMode || "turn") === "turn") return currentTurnUid() === myUid;
   return true;
 }
@@ -3992,17 +4043,15 @@ async function reviveLotteryIfStuck() {
   const picks = lotState.picks || {};
   if (Object.keys(picks).length >= total) { await finishLottery(lotState, "所有杯子都被選走了，開獎！"); return; }
 
-  const limit = roomMeta.lotPickLimit ?? 1;
-  const counts = lotPickCounts(picks);
   const seats = activeOrdered().map(([uid]) => uid);
-  const canStill = (uid) => limit === 0 || (counts[uid] || 0) < limit;
-  const anyone = seats.some(canStill);
-  if (!anyone) { await finishLottery(lotState, "每個人都選過了，開獎！"); return; }
-
-  // 還有人能掀，但輪次卡在一個掀不了的人身上（已達上限或已離開）→ 把輪次推到下一個能掀的人
+  if (!seats.some(uid => lotCanStillPick(uid, picks))) {
+    await finishLottery(lotState, "每個人都選過了，開獎！");
+    return;
+  }
+  // 還有人能掀，但輪次卡在一個掀不了的人身上（已達上限、被跳過或已離開）→ 推到下一個能掀的人
   if ((roomMeta.lotPickMode || "turn") === "turn") {
     const cur = currentTurnUid();
-    if (!cur || !canStill(cur)) await advanceLotteryTurn(lotState);
+    if (!cur || !lotCanStillPick(cur, picks)) await advanceLotteryTurn(lotState);
   }
 }
 
@@ -4310,13 +4359,11 @@ async function finishLottery(after, reason) {
 async function advanceLotteryTurn(after) {
   const ordered = activeOrdered();   // 與 currentTurnUid() 用同一份名單，模數基底才會一致
   if (!ordered.length) return;
-  const limit = roomMeta.lotPickLimit ?? 1;
-  const counts = lotPickCounts(after.picks);
   const base = roomMeta.turnIndex || 0;
 
   for (let step = 1; step <= ordered.length; step++) {
     const uid = ordered[(base + step) % ordered.length][0];
-    if (limit === 0 || (counts[uid] || 0) < limit) {
+    if (lotCanStillPick(uid, after.picks)) {
       await update(ref(db, `rooms/${currentRoomId}/meta`), { turnIndex: base + step });
       return;
     }
@@ -4326,11 +4373,8 @@ async function advanceLotteryTurn(after) {
 
 /* 自由搶模式：每個人都選滿了就開獎（不限次數時則等杯子被選完） */
 async function maybeFinishLottery(after) {
-  const limit = roomMeta.lotPickLimit ?? 1;
-  if (limit === 0) return;
-  const counts = lotPickCounts(after.picks);
-  const anyLeft = Object.keys(players).some(uid => (counts[uid] || 0) < limit);
-  if (anyLeft) return;
+  if ((roomMeta.lotPickLimit ?? 1) === 0) return;
+  if (Object.keys(players).some(uid => lotCanStillPick(uid, after.picks))) return;
   await finishLottery(after, "每個人都選過了，開獎！");
 }
 </script>
