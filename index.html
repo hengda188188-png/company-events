@@ -935,7 +935,7 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 
 /* ===== 版本號：每次修改都會更新，方便確認 GitHub 上是不是最新版 ===== */
-const APP_VERSION = "v30.2.0";
+const APP_VERSION = "v30.3.0";
 document.getElementById("versionTag").textContent = APP_VERSION;
 console.log("公司-线上小活动", APP_VERSION);
 
@@ -1118,10 +1118,27 @@ function computeRoundAwards() {
    用資料庫上的一次性標記 meta/scoredRounds/{局次} 保證「每一局只結算一次」——
    本機變數做不到這件事：任何人重新整理、或房主手動歸零之後，
    都會有客戶端把已經刪掉的積分重新寫回去。 */
+let awardDelayTimer = null;
 async function writeRoundAwards() {
   if (!currentRoomId) return;
   if ((roomMeta.gameState || "lobby") !== "finished") return;
   if (!Object.keys(players).length) return;   // players 還沒載入，寫下去名字會是空字串
+
+  // 賓果「系統自動判定」的達標登記是陸續抵達的，而且可能觸發加賽。
+  // 太早結算會發生：先寫入單一勝者的積分 → 第二個人的登記才到 → 開加賽 →
+  // 加賽撤銷積分，但那筆寫入若晚一步落地就會殘留。等加賽判定窗口過去再結算。
+  if (gameType() === "bingo" && (roomMeta.winMode || "race") === "auto") {
+    if (awardDelayTimer) return;
+    awardDelayTimer = setTimeout(() => { awardDelayTimer = null; doWriteRoundAwards(); }, 2000);
+    return;
+  }
+  await doWriteRoundAwards();
+}
+
+async function doWriteRoundAwards() {
+  if (!currentRoomId) return;
+  if ((roomMeta.gameState || "lobby") !== "finished") return;
+  if (!Object.keys(players).length) return;
   const awards = computeRoundAwards();
   if (!awards || !Object.keys(awards).length) return;
 
@@ -1859,6 +1876,7 @@ function maybeClaimHost() {
     if (hostMigrationTimer) { clearTimeout(hostMigrationTimer); hostMigrationTimer = null; }
   if (bingoPlayoffTimer) { clearTimeout(bingoPlayoffTimer); bingoPlayoffTimer = null; }
   clearOfflineSkip();
+  if (awardDelayTimer) { clearTimeout(awardDelayTimer); awardDelayTimer = null; }
     return;
   }
   if (!iAmOnline) return;
@@ -1932,8 +1950,9 @@ function subscribeRoom() {
     if (state === "playing" && prevState && prevState !== "playing") {
       showToast("🎉 遊戲開始！");
     }
-    // 回到大廳、或賓果開了新一輪加賽，都要重新允許登記達標
-    if (state === "lobby" || (roomMeta.bingoRound || 1) !== prevBingoRound) myWinRegistered = false;
+    // 回到大廳就重新允許登記達標。
+    // 加賽的重設交給 calledNumbers 監聽處理（見該處註解），這裡只記錄輪次供顯示用。
+    if (state === "lobby") myWinRegistered = false;
     prevBingoRound = roomMeta.bingoRound || 1;
 
     lockBtn.disabled = state === "preparing";
@@ -2011,6 +2030,10 @@ function subscribeRoom() {
 
   unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/calledNumbers`), (snap) => {
     calledNumbers = snap.val() || {};
+    // 公共號碼被清空 = 新的一輪（開新局或加賽）開始，重新允許登記達標。
+    // 不能只靠 bingoRound 判斷：加賽是「先搶 bingoRound、再清空號碼」兩段寫入，
+    // 中間那個空窗會讓客戶端誤以為還在上一輪而立刻重新登記，把旗標卡死。
+    if (!Object.keys(calledNumbers).length) myWinRegistered = false;
     renderPublicGrid();
     renderMyCard();
     updateBingoCount();
@@ -2541,6 +2564,7 @@ scheduleSaveBtn.addEventListener("click", async () => {
     [`rooms/${currentRoomId}/meta/winners`]: null,
     [`rooms/${currentRoomId}/meta/finalists`]: null,
     [`rooms/${currentRoomId}/meta/bingoRound`]: null,
+    [`rooms/${currentRoomId}/playoffClaim`]: null,
     [`rooms/${currentRoomId}/calledNumbers`]: null,
     [`rooms/${currentRoomId}/pwState`]: null,
     [`rooms/${currentRoomId}/pwGuesses`]: null,
@@ -2807,6 +2831,7 @@ async function resetRoomForNewRound(advance, keepScores) {
   updates[`rooms/${currentRoomId}/meta/winners`] = null;
   updates[`rooms/${currentRoomId}/meta/finalists`] = null;
   updates[`rooms/${currentRoomId}/meta/bingoRound`] = null;
+  updates[`rooms/${currentRoomId}/playoffClaim`] = null;
   updates[`rooms/${currentRoomId}/calledNumbers`] = null;
   updates[`rooms/${currentRoomId}/pwState`] = null;
   updates[`rooms/${currentRoomId}/pwGuesses`] = null;
@@ -3304,6 +3329,10 @@ function maybeBingoPlayoff() {
   bingoPlayoffTimer = setTimeout(() => { bingoPlayoffTimer = null; startBingoPlayoff(); }, 1200);
 }
 
+/* 加賽的本質就是「排除已淘汰的人，用完全相同的規則重新開一局」：
+   清空公共號碼、只重發決賽者的號碼卡、其餘設定（幾條算 BINGO 等）一律沿用。
+   關鍵是這些欄位必須在「同一次 update」裡生效 —— Firebase 的多路徑 update 是原子的，
+   拆成兩次寫入就會露出中間狀態，那正是先前加賽打不完的原因。 */
 async function startBingoPlayoff() {
   if (!currentRoomId || gameType() !== "bingo") return;
   if ((roomMeta.gameState || "lobby") !== "finished") return;
@@ -3315,9 +3344,13 @@ async function startBingoPlayoff() {
   const uids = Object.keys(roomMeta.winners || {}).filter(uid => players[uid]);
   if (uids.length <= 1) return;
 
-  // 用 bingoRound 當發動權：搶到的人才負責寫入，其他人放棄
+  // 發動權放在 playoffClaim —— 這個節點沒有任何監聽器，
+  // 所以「搶發動權」不會被其他人看見，也就不會產生中間狀態。
+  // （先前是拿 meta/bingoRound 當發動權，它在 meta 底下會被廣播出去，
+  //   造成「輪次已變但號碼還沒清、finalists 還沒設定」的空窗，
+  //   讓達標旗標被誤重設後鎖死、已淘汰的人還能叫號。）
   const claim = await runTransaction(
-    ref(db, `rooms/${currentRoomId}/meta/bingoRound`),
+    ref(db, `rooms/${currentRoomId}/playoffClaim`),
     (cur) => ((cur || 1) >= round ? undefined : round)
   );
   if (!claim.committed) return;
@@ -3331,6 +3364,7 @@ async function startBingoPlayoff() {
   updates[`rooms/${currentRoomId}/calledNumbers`] = null;
   updates[`rooms/${currentRoomId}/meta/winners`] = null;
   updates[`rooms/${currentRoomId}/meta/finalists`] = uids;
+  updates[`rooms/${currentRoomId}/meta/bingoRound`] = round;
   updates[`rooms/${currentRoomId}/meta/turnIndex`] = roomMeta.turnStart || 0;
   uids.forEach(uid => { updates[`rooms/${currentRoomId}/boards/${uid}/numbers`] = randomBoard(); });
   await update(ref(db), updates);
