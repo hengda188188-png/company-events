@@ -192,7 +192,50 @@ A 自動算 1 或 11，J/Q/K 算 10。房主可設定起手發幾張（1–3，�
 
 > 沒有 build 步驟、沒有相依套件。改完 `index.html` 推上 GitHub 就會自動更新。
 >
-> （原作附帶的 `js/` 模組化骨架從未被載入，本分支已移除，避免有人改錯檔案。）
+> （原作附帶的 `js/` 模組化骨架從未被 `index.html` 載入、內容只有註解標頭，本分支已移除，避免有人改錯檔案。）
+
+## 本機開發
+
+不需要 npm、不需要安裝任何東西。clone 下來之後：
+
+```bash
+git clone https://github.com/qiyi-studio/company-bingo.git
+cd company-bingo
+
+# 起一個本機靜態伺服器，擇一即可
+python -m http.server 8000        # Python 3
+npx serve .                        # Node.js
+```
+
+然後開 <http://localhost:8000>。
+
+> ⚠️ **不要直接雙擊 `index.html`。** 用 `file://` 開啟時，瀏覽器的來源不是合法網域，
+> Firebase 匿名登入會失敗、整個房間功能都不能用。一定要走 `localhost`
+> （`localhost` 預設就在 Firebase 的授權網域清單裡，不用另外設定）。
+
+改完直接重新整理就看得到，改 `index.html` 就是改整個網站。
+版本號在檔案裡的 `APP_VERSION`，改功能時順手更新，方便確認線上跑的是不是最新版。
+
+### 想接手維護、或改用自己的 Firebase
+
+`index.html` 開頭的 `firebaseConfig` 換成你自己的專案即可，然後在 Firebase 主控台完成三件事：
+
+1. **Realtime Database** → 建立資料庫（地區建議 `asia-southeast1`）
+2. **Authentication → Sign-in method** → 啟用「匿名」
+3. **Authentication → 設定 → 已授權的網域** → 加入你的 GitHub Pages 網域
+
+資料庫規則建議設成：
+
+```json
+{
+  "rules": {
+    "rooms": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
+```
 
 ---
 
