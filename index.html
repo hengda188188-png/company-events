@@ -399,6 +399,20 @@
   .card-result .who-win{color:var(--coral-dark);}
   .card-result .sub{font-size:13px;color:var(--ink-soft);margin-top:3px;}
 
+  /* ===== 牛牛的桌面公共牌 ===== */
+  .niu-table{width:100%;max-width:470px;margin:0 0 12px;padding:10px 12px;
+    background:var(--paper-dim);border-radius:12px;border:1.5px dashed var(--gold-dark);}
+  .niu-table-cards{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;}
+  .niu-table-cards .pcard{cursor:default;}
+  .niu-table-cards .pcard.pickable{cursor:pointer;box-shadow:0 2px 0 var(--gold-dark);}
+  .niu-table-cards .pcard.pickable:hover{transform:translateY(-3px);}
+  .niu-table-cards .pcard.picked{
+    box-shadow:0 0 0 3px var(--coral);transform:translateY(-5px);
+  }
+  .niu-pick-hint{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:7px;min-height:16px;}
+  .niu-pick-hint b{color:var(--coral-dark);}
+  .hand-row .plus{font-size:11px;color:var(--ink-soft);flex-shrink:0;}
+
   /* ===== 遊戲區共用容器 ===== */
   .game-zone{width:100%;display:flex;flex-direction:column;align-items:center;}
   .rule-settings textarea{
@@ -581,7 +595,7 @@
         <li><b>🔢 終極密碼</b>：系統藏一個數字，依順位輪流猜，範圍愈縮愈小。可設定成「密碼專家」（猜中的人獲勝、拿積分）或傳統的「猜中者受罰」</li>
         <li><b>🥤 抽獎</b>：房主設定杯子數量與獎項，獎品被打亂蓋在杯子下，玩家各挑一個，全員選完才一次開獎</li>
         <li><b>🃏 21點</b>：<b>只有第一張是明牌</b>，其餘蓋著別人看不到。輪到你就一路要牌到停牌或爆牌為止，才換下一家。最接近 21 點又沒爆的贏；全員爆牌則最接近 21 的贏</li>
-        <li><b>🐮 牛牛</b>：每人 5 張暗牌，任 3 張湊成 10 的倍數就成牛，剩 2 張的個位數是牛幾，各自開牌後結算</li>
+        <li><b>🐮 牛牛</b>：每人 3 張暗牌，再從<b>桌面公共牌挑 2 張</b>湊成 5 張（桌面牌共用，可以和別人挑一樣的）。任 3 張湊成 10 的倍數就成牛，剩 2 張的個位數是牛幾。房主可設定系統自動配最佳組合，或讓玩家自己挑（挑錯就判無牛）</li>
         <li><b>⚔️ 比大小</b>：每人抽指定張數的暗牌，比總點數，各自開牌後結算</li>
         <li><b>三種牌局每局都會決出唯一勝者</b>：同分的人重新洗牌加賽，只有他們再比一次，直到分出勝負為止</li>
         <li>左側可設定「用幾副牌」（1–4 副）。多副牌隨機性更高，人多時也才夠發</li>
@@ -728,7 +742,14 @@
       </div>
 
       <div class="rule-settings hidden" id="niuniuRulesEl">
-        <div class="sched-note">每人 5 張。任 3 張湊成 10 的倍數就成牛，剩下 2 張的個位數就是牛幾（0 算牛牛）。同牛時比最大單張。</div>
+        <label>桌面公共牌張數</label>
+        <input id="niuTableInput" type="number" min="3" max="8" value="5" />
+        <label>怎麼配牌</label>
+        <select id="niuAutoSelect">
+          <option value="auto">系統自動配最佳組合</option>
+          <option value="manual">玩家自己挑（配錯判無牛）</option>
+        </select>
+        <div class="sched-note">每人 3 張暗牌，再從桌面挑 2 張湊成 5 張。桌面牌是共用的，不同玩家可以挑到同樣的牌。任 3 張湊成 10 的倍數就成牛，剩下 2 張的個位數就是牛幾。</div>
       </div>
 
       <div class="rule-settings hidden" id="compareRulesEl">
@@ -837,6 +858,11 @@
     <div id="cardZoneEl" class="game-zone hidden">
       <div id="cardResultEl" class="card-result hidden"></div>
       <div id="cardStatusEl" class="card-status"></div>
+      <div id="niuTableWrapEl" class="niu-table hidden">
+        <div class="section-label">桌面公共牌（大家共用，可以挑到一樣的）</div>
+        <div id="niuTableEl" class="niu-table-cards"></div>
+        <div id="niuPickHintEl" class="niu-pick-hint"></div>
+      </div>
       <div id="cardListEl" class="card-list"></div>
       <div class="card-actions">
         <button class="primary hidden" id="bjHitBtn">🃏 要牌</button>
@@ -935,7 +961,7 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 
 /* ===== 版本號：每次修改都會更新，方便確認 GitHub 上是不是最新版 ===== */
-const APP_VERSION = "v31.0.0";
+const APP_VERSION = "v32.0.0";
 document.getElementById("versionTag").textContent = APP_VERSION;
 console.log("公司-线上小活动", APP_VERSION);
 
@@ -1282,11 +1308,16 @@ const niuniuRulesEl    = $("niuniuRulesEl");
 const compareRulesEl   = $("compareRulesEl");
 const cardCommonRulesEl = $("cardCommonRulesEl");
 const cardDeckInput    = $("cardDeckInput");
+const niuTableInput    = $("niuTableInput");
+const niuAutoSelect    = $("niuAutoSelect");
 const bjInitialInput   = $("bjInitialInput");
 const cmpCardsInput    = $("cmpCardsInput");
 const cardZoneEl       = $("cardZoneEl");
 const cardResultEl     = $("cardResultEl");
 const cardStatusEl     = $("cardStatusEl");
+const niuTableWrapEl   = $("niuTableWrapEl");
+const niuTableEl       = $("niuTableEl");
+const niuPickHintEl    = $("niuPickHintEl");
 const cardListEl       = $("cardListEl");
 const bjHitBtn         = $("bjHitBtn");
 const bjStandBtn       = $("bjStandBtn");
@@ -1695,7 +1726,7 @@ createRoomBtn.addEventListener("click", async () => {
     bingoThreshold: 1, winMode: "race",
     pwMin: 1, pwMax: 100, pwHitRole: "lose",
     lotCupCount: 6, lotPrizes: "", lotBlank: "銘謝惠顧", lotPickMode: "turn", lotPickLimit: 1,
-    cardDecks: 1, bjInitial: 2, cmpCards: 1
+    cardDecks: 1, bjInitial: 2, cmpCards: 1, niuTable: 5, niuAuto: "auto"
   });
 
   createRoomName.value = ""; createRoomPwd.value = "";
@@ -1921,6 +1952,7 @@ function resetRoomLocalState() {
   myWinRegistered = false; prevBingoRound = 1;
   bragState = { count: 0, times: 0, locked: false };
   prizeEditorSig = null;
+  resetNiuPick();
   resetLotteryView();
   resetScheduleWatch();   // 剛進房不該跳「賽程更新了」的提示
 }
@@ -2057,7 +2089,10 @@ function subscribeRoom() {
   }));
 
   unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/cardState`), (snap) => {
+    const prevRound = cardState.round;
     cardState = snap.val() || {};
+    // 換了一局（或加賽重發）就把上一局的選牌清掉
+    if (cardState.round !== prevRound || !cardState.hands) resetNiuPick();
     renderCardZone();
     renderSpectateBanner();
     writeRoundAwards();
@@ -2312,13 +2347,15 @@ function syncRuleInputs(state) {
   setVal(lotPickModeSelect, roomMeta.lotPickMode || "turn");
   setVal(lotPickLimitInput, roomMeta.lotPickLimit ?? 1);
   setVal(cardDeckInput, roomMeta.cardDecks ?? 1);
+  setVal(niuTableInput, roomMeta.niuTable ?? 5);
+  setVal(niuAutoSelect, roomMeta.niuAuto === "manual" ? "manual" : "auto");
   setVal(bjInitialInput, roomMeta.bjInitial ?? 2);
   setVal(cmpCardsInput, roomMeta.cmpCards ?? 1);
 
   [bingoThresholdInput, winModeSelect,
    pwMinInput, pwMaxInput, pwHitRoleSelect,
    lotCupCountInput, lotBlankInput, lotPickModeSelect, lotPickLimitInput,
-   cardDeckInput, bjInitialInput, cmpCardsInput]
+   cardDeckInput, niuTableInput, niuAutoSelect, bjInitialInput, cmpCardsInput]
     .forEach(el => el.classList.toggle("locked", locked));
 }
 
@@ -2616,6 +2653,17 @@ pwHitRoleSelect.addEventListener("change", () => {
 });
 
 /* ===== 撲克牌遊戲房規 ===== */
+niuTableInput.addEventListener("change", () => {
+  let v = parseInt(niuTableInput.value, 10);
+  if (!Number.isFinite(v) || v < 3) v = 3;
+  if (v > 8) v = 8;
+  niuTableInput.value = v;
+  saveRule({ niuTable: v }, `${myName} 將牛牛的桌面公共牌設為 ${v} 張`);
+});
+niuAutoSelect.addEventListener("change", () => {
+  const v = niuAutoSelect.value === "manual" ? "manual" : "auto";
+  saveRule({ niuAuto: v }, `${myName} 將牛牛配牌方式設為「${v === "manual" ? "玩家自己挑" : "系統自動"}」`);
+});
 cardDeckInput.addEventListener("change", () => {
   let v = parseInt(cardDeckInput.value, 10);
   if (!Number.isFinite(v) || v < 1) v = 1;
@@ -2867,7 +2915,9 @@ lockBtn.addEventListener("click", async () => {
       // 21 點還要留牌給大家補牌，所以多抓一點餘裕
       const per = cardsPerPlayer();
       const decks = deckCount();
-      const need = list.length * per + (gameType() === "blackjack" ? list.length * 2 : 0);
+      const need = list.length * per
+        + (gameType() === "blackjack" ? list.length * 2 : 0)
+        + (gameType() === "niuniu" ? niuTableCount() : 0);
       if (need > 52 * decks) {
         alert(`${decks} 副牌共 ${decks * 52} 張，${list.length} 人每人 ${per} 張不夠發。\n請減少人數／張數，或在左側把「用幾副牌」調高。`);
         return;
@@ -3652,10 +3702,12 @@ function handsUsedCards(hands) {
   Object.values(hands || {}).forEach(h => (h || []).forEach(c => used.add(c)));
   return used;
 }
-/* 從還沒發出去的牌裡隨機抽 n 張（decks 副牌，共 52×decks 張） */
-function drawCards(hands, n, decks) {
+/* 從還沒發出去的牌裡隨機抽 n 張（decks 副牌，共 52×decks 張）。
+   extra 是額外要排除的牌（例如桌面公共牌），避免同一局出現重複牌號。 */
+function drawCards(hands, n, decks, extra) {
   const total = 52 * Math.min(4, Math.max(1, decks || 1));
   const used = handsUsedCards(hands);
+  (extra || []).forEach(c => used.add(c));
   const pool = [];
   for (let c = 0; c < total; c++) if (!used.has(c)) pool.push(c);
   const out = [];
@@ -3701,10 +3753,14 @@ function scoreHand(gt, hand) {
 function handTop(hand) { return (hand || []).reduce((m, c) => Math.max(m, cardPower(c)), -1); }
 /* 排名：先比分數，同分的人並列在一起（真正的勝負交給加賽決定）。
    已經離開房間的人要排除 —— 否則他可能被判為勝者，拿走該局積分卻不在牌桌上。 */
-function rankHands(gt, hands) {
-  return Object.entries(hands || {})
-    .filter(([uid]) => players[uid])
-    .map(([uid, hand]) => ({ uid, hand: hand || [], ...scoreHand(gt, hand), top: handTop(hand) }))
+function rankHands(gt, st) {
+  const hands = (st && st.hands) || {};
+  return Object.keys(hands)
+    .filter(uid => players[uid])
+    .map(uid => {
+      const hand = handOfPlayer(st, gt, uid);
+      return { uid, hand, ...scoreHand(gt, hand), top: handTop(hand) };
+    })
     .sort((a, b) => b.value - a.value || b.top - a.top);
 }
 /* 目前並列第一的人（可能不只一個 → 要加賽） */
@@ -3714,9 +3770,12 @@ function topTied(ranked) {
 }
 
 /* ---- 牌局狀態 ---- */
+function niuTableCount() { return Math.min(8, Math.max(3, roomMeta.niuTable ?? 5)); }
+function niuIsAuto() { return (roomMeta.niuAuto || "auto") !== "manual"; }
+
 function cardsPerPlayer() {
   const gt = gameType();
-  if (gt === "niuniu") return 5;
+  if (gt === "niuniu") return 3;   // 手牌 3 張，另外從桌面挑 2 張湊成 5 張
   if (gt === "blackjack") return Math.min(3, Math.max(1, roomMeta.bjInitial ?? 2));
   return Math.min(5, Math.max(1, roomMeta.cmpCards ?? 1));
 }
@@ -3735,8 +3794,86 @@ function makeCardState(seats, round) {
   const per = cardsPerPlayer();
   const decks = deckCount();
   const hands = {};
-  list.forEach(uid => { hands[uid] = drawCards(hands, per, decks); });
-  return { game: gameType(), per, decks, round: round || 1, finalists: list, hands };
+  // 牛牛要先發桌面公共牌，之後每個人的手牌都要避開它
+  const table = gameType() === "niuniu" ? drawCards({}, niuTableCount(), decks) : null;
+  list.forEach(uid => { hands[uid] = drawCards(hands, per, decks, table); });
+  const st = { game: gameType(), per, decks, round: round || 1, finalists: list, hands };
+  if (table) { st.table = table; st.auto = niuIsAuto(); }
+  return st;
+}
+
+/* 牛牛：某位玩家最終的 5 張 = 手牌 3 張 + 他從桌面挑的 2 張 */
+function niuHandOf(st, uid) {
+  const hand = (st.hands || {})[uid] || [];
+  const pick = (st.picks || {})[uid];
+  const table = st.table || [];
+  if (!pick || pick.length !== 2) return hand;
+  const extra = pick.map(i => table[i]).filter(c => c !== undefined && c !== null);
+  return [...hand, ...extra];
+}
+/* 從桌面挑出能配出最大牛的兩張（系統自動模式用） */
+function niuBestPick(hand, table) {
+  let best = null;
+  for (let i = 0; i < table.length; i++) {
+    for (let j = i + 1; j < table.length; j++) {
+      const niu = niuPoints([...hand, table[i], table[j]]).niu;
+      if (!best || niu > best.niu) best = { niu, pick: [i, j] };
+    }
+  }
+  return best ? best.pick : [0, 1];
+}
+/* 統一取得某位玩家用來比大小的那手牌 */
+function handOfPlayer(st, gt, uid) {
+  return gt === "niuniu" ? niuHandOf(st, uid) : ((st.hands || {})[uid] || []);
+}
+
+/* 我目前選了哪兩張桌面牌（還沒送出前是本機狀態） */
+let niuPick = [];
+function resetNiuPick() { niuPick = []; }
+
+function renderNiuTable(finished) {
+  const gt = gameType();
+  const table = cardState.table || [];
+  if (gt !== "niuniu" || !table.length) {
+    niuTableWrapEl.classList.add("hidden");
+    return;
+  }
+  niuTableWrapEl.classList.remove("hidden");
+
+  const state = roomMeta.gameState || "lobby";
+  const shown = cardState.shown || {};
+  const auto = cardState.auto !== false;
+  const myHand = (cardState.hands || {})[myUid] || [];
+  const iCanPick = state === "playing" && !auto && myHand.length && !shown[myUid];
+
+  niuTableEl.innerHTML = "";
+  table.forEach((c, i) => {
+    const el = buildCard(c, true);
+    if (niuPick.includes(i)) el.classList.add("picked");
+    if (iCanPick) {
+      el.classList.add("pickable");
+      el.addEventListener("click", () => {
+        const at = niuPick.indexOf(i);
+        if (at >= 0) niuPick.splice(at, 1);
+        else if (niuPick.length < 2) niuPick.push(i);
+        else { niuPick.shift(); niuPick.push(i); }   // 已選兩張，換掉最早選的
+        renderNiuTable(finished);
+        renderCardZone();
+      });
+    }
+    niuTableEl.appendChild(el);
+  });
+
+  if (finished || shown[myUid]) {
+    niuPickHintEl.textContent = "";
+  } else if (auto) {
+    niuPickHintEl.textContent = "系統會自動幫你從桌面挑出最好的兩張，直接按「開牌」即可。";
+  } else if (niuPick.length < 2) {
+    niuPickHintEl.innerHTML = `從桌面點選 <b>2 張</b>（已選 ${niuPick.length} 張）湊成 5 張。配不出牛就是無牛，看仔細。`;
+  } else {
+    const preview = niuPoints([...myHand, table[niuPick[0]], table[niuPick[1]]]);
+    niuPickHintEl.innerHTML = `這樣配是 <b>${preview.label}</b> —— 確定就按「開牌」。`;
+  }
 }
 
 /* 本局勝者（結算時寫進 meta.winners，加賽的結果也在裡面） */
@@ -3763,6 +3900,10 @@ function renderCardZone() {
   bjStandBtn.classList.toggle("hidden", !(gt === "blackjack" && myTurn));
   const canShow = state === "playing" && gt !== "blackjack" && myHand && !shown[myUid];
   showHandBtn.classList.toggle("hidden", !canShow);
+  // 牛牛手動配牌時，沒選滿兩張不能開牌
+  const needPick = gt === "niuniu" && cardState.auto === false && niuPick.length !== 2;
+  showHandBtn.disabled = needPick;
+  showHandBtn.textContent = needPick ? "👀 請先從桌面選 2 張" : "👀 開牌";
 
   // 狀態提示（加賽時先標明現在是第幾輪、誰還在場）
   const playoff = (cardState.round || 1) > 1;
@@ -3794,7 +3935,7 @@ function renderCardZone() {
 
   seats.forEach(uid => {
     const p = players[uid] || {};
-    const hand = hands[uid] || [];
+    const hand = handOfPlayer(cardState, gt, uid);
     const mine = uid === myUid;
     const vis = { mine, finished, shown: shown[uid] };
     const allVisible = hand.every((_, i) => cardVisibleTo(gt, uid, i, vis));
@@ -3833,6 +3974,7 @@ function renderCardZone() {
     cardListEl.appendChild(row);
   });
 
+  renderNiuTable(finished);
   renderCardResult(gt, hands, finished, seats.length);
 }
 
@@ -3855,7 +3997,7 @@ function renderCardResult(gt, hands, finished, seatCount) {
     cardResultEl.innerHTML = "";
     return;
   }
-  const ranked = rankHands(gt, hands);
+  const ranked = rankHands(gt, cardState);
   if (!ranked.length) { cardResultEl.classList.add("hidden"); return; }
   // 勝者以資料庫寫入的為準（可能是加賽打出來的），沒有才退回用手牌推算
   const winUid = cardWinnerUid() || ranked[0].uid;
@@ -3947,10 +4089,40 @@ async function showMyHand() {
   if (!currentRoomId || !isCardGame() || gameType() === "blackjack") return;
   if ((roomMeta.gameState || "lobby") !== "playing") return;
 
+  // 手動配牌是花時間挑出來的，手滑點到就定案太可惜 —— 先跳確認。
+  // 自動配牌沒有這個問題（沒有選擇會被浪費掉），就不打擾。
+  if (gameType() === "niuniu" && cardState.auto === false) {
+    if (niuPick.length !== 2) { alert("請先從桌面點選 2 張牌。"); return; }
+    const table = cardState.table || [];
+    const myHand = (cardState.hands || {})[myUid] || [];
+    const picked = niuPick.map(i => table[i]);
+    const result = niuPoints([...myHand, ...picked]);
+    const ok = confirm(
+      "確定用這個組合開牌嗎？\n\n" +
+      `你的手牌：${myHand.map(cardName).join("  ")}\n` +
+      `桌面選了：${picked.map(cardName).join("  ")}\n\n` +
+      `結果：${result.label}\n\n` +
+      "開牌之後不能反悔。"
+    );
+    if (!ok) return;
+  }
+
   const res = await runTransaction(ref(db, `rooms/${currentRoomId}/cardState`), (s) => {
     if (!s || !s.hands || !s.hands[myUid]) return;
     const shown = s.shown || {};
     if (shown[myUid]) return;
+
+    // 牛牛：把「用桌面哪兩張」一起記下來。自動模式由系統挑最好的組合，
+    // 手動模式就照玩家自己選的 —— 選錯（配不出牛）就是無牛，不會幫他修正。
+    if (gameType() === "niuniu" && Array.isArray(s.table)) {
+      const picks = s.picks || {};
+      const myHand = s.hands[myUid] || [];
+      picks[myUid] = (s.auto === false && niuPick.length === 2)
+        ? [...niuPick].sort((a, b) => a - b)
+        : niuBestPick(myHand, s.table);
+      s.picks = picks;
+    }
+
     shown[myUid] = true;
     s.shown = shown;
     return s;
@@ -3958,7 +4130,7 @@ async function showMyHand() {
   if (!res.committed) return;
 
   const after = res.snapshot.val() || {};
-  const hand = (after.hands || {})[myUid] || [];
+  const hand = handOfPlayer(after, gameType(), myUid);
   const s = scoreHand(gameType(), hand);
   pushLog(`${myName} 開牌：${hand.map(cardName).join(" ")}　→　${s.label}`);
 
@@ -3972,7 +4144,7 @@ const MAX_PLAYOFF_ROUNDS = 12;
 
 async function settleCardGame(state) {
   const gt = gameType();
-  const ranked = rankHands(gt, state.hands || {});
+  const ranked = rankHands(gt, state);
   if (!ranked.length) return;   // 全部人都離開了，交給房主中止本局
 
   const tied = topTied(ranked);
