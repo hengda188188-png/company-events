@@ -1,0 +1,4326 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>Company Bingo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@500;600;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#18142c; --ink-soft:#5c5872; --ink-line:#2a2547;
+    --paper:#fffdf7; --paper-dim:#f4ecd8; --line:#e4d6ae;
+    --gold:#e0a527; --gold-dark:#a97a12; --gold-ink:#2a1c02;
+    --coral:#e2543f; --coral-dark:#ad3c2b;
+    --green:#3f8f5f; --green-dark:#256b41;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--paper-dim);color:var(--ink);
+    font-family:"Space Grotesk",system-ui,"Noto Sans TC",sans-serif;
+  }
+  .mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  .hidden{display:none !important;}
+
+  button{
+    cursor:pointer;border-radius:8px;border:1.5px solid var(--line);padding:7px 13px;
+    background:var(--paper);color:var(--ink);font-family:inherit;font-weight:500;font-size:13px;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  button:hover:not(:disabled){transform:translateY(-1px);}
+  button.primary{background:var(--gold);border-color:var(--gold-dark);color:var(--gold-ink);font-weight:700;}
+  button.danger{background:var(--coral);border-color:var(--coral-dark);color:#fff8f5;}
+  button:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+  /* ===== 頂欄：霓虹招牌感 ===== */
+  .topbar{
+    background:var(--ink);color:#f4ecd8;padding:12px 18px;
+    display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+    border-bottom:3px solid var(--gold);
+  }
+  .topbar .brand{font-size:19px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;}
+  .topbar .brand .ver{margin-left:8px;font-size:10px;font-weight:500;letter-spacing:0;color:#8b83a8;text-transform:none;}
+  .topbar .right{display:flex;align-items:center;gap:10px;font-size:12px;flex-wrap:wrap;color:#c9c2e0;}
+  .topbar a.toggle{color:var(--gold);text-decoration:underline;cursor:pointer;font-size:12px;}
+  .topbar button.small{font-size:11px;padding:4px 9px;background:transparent;border-color:#443d6b;color:#e9e3fa;}
+
+  /* ===== Modal ===== */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(20,16,40,.6);display:flex;align-items:center;justify-content:center;z-index:60;}
+  .modal{background:var(--paper);border-radius:14px;padding:20px;width:320px;max-width:90vw;box-shadow:0 20px 50px rgba(0,0,0,.35);border:1px solid var(--line);}
+  .modal h3{margin:0 0 10px;font-size:17px;}
+  .modal input{width:100%;padding:8px 9px;border-radius:8px;border:1.5px solid var(--line);font-size:14px;margin-bottom:10px;font-family:inherit;background:#fff;}
+  .help-modal{width:460px;max-height:80vh;overflow-y:auto;}
+  .help-section{margin-top:12px;}
+  .help-title{font-weight:700;font-size:14px;margin-bottom:6px;}
+  .help-section ul{margin:0;padding-left:18px;font-size:13px;color:var(--ink-soft);line-height:1.6;}
+  .help-section li{margin-bottom:4px;}
+
+  /* ===== 大廳 ===== */
+  .lobby{max-width:880px;margin:18px auto;padding:0 14px;}
+  .card{background:var(--paper);border-radius:14px;padding:16px 18px;box-shadow:0 2px 10px rgba(24,20,44,.06);margin-bottom:14px;border:1px solid var(--line);}
+  .card h2{margin:0 0 12px;font-size:16px;letter-spacing:.3px;}
+  .lobby label{font-size:12px;display:block;margin:8px 0 3px;color:var(--ink-soft);}
+  .lobby input{width:100%;padding:8px 9px;border-radius:8px;border:1.5px solid var(--line);font-size:14px;font-family:inherit;background:#fff;}
+  .room-list{list-style:none;margin:6px 0 0;padding:0;}
+  .room-list li{display:flex;justify-content:space-between;align-items:center;padding:9px 4px;border-bottom:1px dashed var(--line);font-size:14px;}
+  .room-list li:last-child{border-bottom:none;}
+  .room-list .name{font-weight:600;}
+  .muted{color:var(--ink-soft);font-size:12px;}
+
+  /* ===== 三欄主畫面 ===== */
+  .game-wrap{display:flex;gap:12px;padding:12px;align-items:flex-start;max-width:1180px;margin:0 auto;}
+  .col{background:var(--paper);border-radius:14px;box-shadow:0 2px 10px rgba(24,20,44,.06);padding:14px;border:1px solid var(--line);}
+  .col-left{width:200px;min-width:180px;display:flex;flex-direction:column;gap:9px;}
+  .col-center{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;}
+  .col-right{width:340px;min-width:260px;}
+
+  .col-left h3{margin:0;font-size:14px;letter-spacing:.3px;}
+  .section-label{font-size:11px;color:var(--ink-soft);letter-spacing:1px;text-transform:uppercase;margin:2px 0 6px;text-align:center;}
+  .left-header{display:flex;justify-content:space-between;align-items:center;}
+  #deleteRoomBtn{width:100%;font-size:12px;padding:5px;}
+  .order-btn-row{display:flex;gap:6px;}
+  .order-btn-row button{flex:1;font-size:12px;padding:5px 4px;}
+  #playerListEl{display:flex;flex-direction:column;gap:4px;}
+
+  .player-row{display:flex;align-items:center;gap:7px;padding:6px 7px;border-radius:9px;font-size:13px;background:var(--paper-dim);}
+  .player-row.me{background:#fbeecb;box-shadow:inset 0 0 0 1.5px var(--gold);}
+  .player-row.offline{opacity:.5;}
+  .player-row .name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .player-avatar{
+    width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+    font-size:12px;flex-shrink:0;
+  }
+  .player-row .order-badge{
+    min-width:22px;width:22px;height:22px;text-align:center;line-height:22px;border-radius:999px;
+    background:#0a0810;color:var(--gold);font-size:11px;font-family:"IBM Plex Mono",monospace;font-weight:700;
+    flex-shrink:0;box-shadow:inset 0 0 0 1.5px #000;
+  }
+  .player-row.clickable{cursor:pointer;}
+  .player-row.clickable:hover{box-shadow:inset 0 0 0 1.5px var(--gold-dark);}
+  .transfer-btn{
+    border:none;background:none;color:var(--ink-soft);font-size:13px;padding:0 2px;cursor:pointer;line-height:1;
+  }
+  .transfer-btn:hover{color:var(--gold-dark);transform:none;}
+  #transferHostBtn{width:100%;font-size:12px;padding:5px;}
+  .transfer-player-list{display:flex;flex-direction:column;gap:5px;max-height:260px;overflow-y:auto;}
+  .transfer-row{
+    display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:9px;
+    background:var(--paper-dim);cursor:pointer;font-size:13px;border:1.5px solid transparent;
+  }
+  .transfer-row:hover{border-color:var(--line);}
+  .transfer-row.selected{border-color:var(--gold-dark);background:#fbeecb;}
+  .card-actions-row{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;}
+
+  /* ===== 中欄：轉盤提示 + 彩球 ===== */
+  .turn-row{display:flex;align-items:center;justify-content:center;gap:10px;padding:2px 0 12px;min-height:36px;}
+  .turn-hint{
+    font-size:16px;font-weight:700;color:var(--gold-ink);text-align:center;
+    background:var(--gold);padding:6px 18px;border-radius:999px;border:1.5px solid var(--gold-dark);
+    box-shadow:0 3px 0 var(--gold-dark);
+  }
+  .turn-hint.idle{font-size:12px;font-weight:500;color:var(--ink-soft);background:none;border:1.5px dashed var(--line);box-shadow:none;padding:5px 16px;}
+
+  .public-grid{display:grid;grid-template-columns:repeat(10,34px);gap:6px;justify-content:center;}
+  .num-btn{
+    width:34px;height:34px;border-radius:50%;border:1.5px solid var(--line);background:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;user-select:none;
+    font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--ink);
+    transition:transform .15s ease, background .15s ease, box-shadow .15s ease;
+  }
+  .num-btn.active{
+    color:#fff;transform:scale(1.08);box-shadow:0 2px 6px rgba(0,0,0,.35);
+  }
+  .num-btn:disabled{cursor:not-allowed;opacity:.4;transform:none;}
+
+  .card-actions-row + .card-actions-row{margin-top:10px;}
+  .bingo-count-label{
+    font-size:14px;font-weight:700;background:var(--ink);color:var(--gold);
+    padding:6px 14px;border-radius:9px;font-family:"IBM Plex Mono",monospace;
+  }
+  .brag-msg{font-size:12px;color:var(--coral-dark);margin:2px 0 8px;text-align:center;height:14px;font-weight:600;}
+
+  .ticket-divider{
+    width:100%;max-width:300px;border-top:2px dashed var(--line);margin:8px 0 10px;position:relative;
+  }
+  .my-card-grid{display:grid;grid-template-columns:repeat(5,54px);grid-auto-rows:54px;gap:7px;}
+  .my-card-grid .num-btn{width:54px;height:54px;font-size:17px;}
+
+  /* ===== 右欄：日誌 ===== */
+  .log-box{
+    background:var(--ink);color:#d9d2f0;border-radius:10px;padding:10px;
+    font-family:"IBM Plex Mono",monospace;font-size:11.5px;height:600px;overflow:auto;
+    border:1px solid var(--ink-line);
+    resize:both;min-height:220px;min-width:220px;max-width:100%;
+  }
+  .log-line{
+    display:flex;align-items:flex-start;gap:6px;margin-bottom:3px;line-height:1.5;
+    font-family:"ZCOOL KuaiLe","Noto Sans TC",system-ui,sans-serif;font-size:15.5px;
+  }
+  .log-line span:last-child{white-space:pre-wrap;word-break:break-word;}
+  .log-dot{width:7px;height:7px;min-width:7px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+
+  .ready-actions{display:flex;gap:8px;margin-bottom:10px;}
+  .ready-actions button{flex:1;}
+  .ready-status-row{display:flex;justify-content:space-between;font-size:14px;padding:3px 0;}
+  .st-ready{color:var(--green-dark);font-weight:600;}
+  .st-wait{color:var(--coral-dark);}
+
+  @media (max-width:940px){
+    .game-wrap{flex-direction:column;align-items:stretch;padding:10px;}
+    .col-left,.col-right{width:100%;}
+    .public-grid{grid-template-columns:repeat(10,28px);gap:4px;}
+    .num-btn{width:28px;height:28px;font-size:10px;}
+    .my-card-grid{grid-template-columns:repeat(5,48px);grid-auto-rows:48px;}
+    .my-card-grid .num-btn{width:48px;height:48px;font-size:15px;}
+    .log-box{height:260px;}
+  }
+
+  .start-toast{
+    position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-12px);
+    background:var(--gold);color:var(--gold-ink);font-weight:700;font-size:16px;
+    padding:10px 22px;border-radius:999px;border:1.5px solid var(--gold-dark);
+    box-shadow:0 8px 24px rgba(24,20,44,.25);z-index:80;
+    opacity:0;transition:opacity .3s ease, transform .3s ease;pointer-events:none;
+  }
+  .start-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* 輪到自己時，號碼大區的呼吸提示框 */
+  .col-center.my-turn{
+    box-shadow:0 0 0 4px var(--coral),0 2px 10px rgba(24,20,44,.06);
+    animation:turnPulseBox 1.3s ease-in-out infinite;
+  }
+  @keyframes turnPulseBox{
+    0%,100%{box-shadow:0 0 0 4px var(--coral),0 2px 10px rgba(24,20,44,.06);}
+    50%{box-shadow:0 0 0 9px var(--coral),0 2px 10px rgba(24,20,44,.06);}
+  }
+
+  /* 房規設定（幾條算 BINGO / 同時 BINGO 模式） */
+  .rule-settings{display:flex;flex-direction:column;gap:4px;padding:8px 9px;background:var(--paper-dim);border-radius:9px;border:1px dashed var(--line);}
+  .rule-settings label{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .rule-settings input,.rule-settings select{
+    width:100%;padding:5px 7px;border-radius:6px;border:1.5px solid var(--line);font-size:13px;
+    font-family:inherit;background:#fff;color:var(--ink);
+  }
+  .rule-settings input:disabled,.rule-settings select:disabled{opacity:.6;}
+  .rule-settings input.locked,.rule-settings select.locked{pointer-events:none;opacity:.6;}
+
+  #cursorHintEl{
+    position:fixed;z-index:120;pointer-events:none;
+    background:var(--ink);color:#f4ecd8;padding:6px 12px;border-radius:8px;font-size:12px;
+    box-shadow:0 6px 16px rgba(0,0,0,.3);white-space:nowrap;
+    opacity:0;transform:translate(-50%,-130%);transition:opacity .5s ease;
+  }
+  #cursorHintEl.show{opacity:1;transition:opacity .15s ease;}
+
+  /* 賓果搶答（先搶先贏模式） */
+  .race-row{display:flex;flex-direction:column;align-items:center;gap:6px;margin:6px 0 10px;}
+  .race-alert{font-size:14px;font-weight:700;color:var(--coral-dark);}
+  #raceSubmitBtn{font-weight:700;}
+  #raceSubmitBtn.ready{background:var(--coral);border-color:var(--coral-dark);color:#fff8f5;animation:raceGlow 1s ease-in-out infinite;}
+  @keyframes raceGlow{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}
+
+  /* 本局結果面板 */
+  .winners-panel{width:100%;max-width:420px;text-align:center;margin:4px 0 14px;padding:12px;background:var(--paper-dim);border-radius:12px;border:1.5px dashed var(--gold-dark);}
+  .winners-title{font-size:16px;font-weight:700;margin-bottom:4px;}
+  .winners-sub{font-size:13px;color:var(--ink-soft);margin-bottom:8px;}
+  .winner-name{font-weight:700;color:var(--coral-dark);font-size:15px;}
+  .winner-pill-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;}
+  .winner-pill{font-size:13px;font-weight:700;padding:6px 14px;border-radius:999px;background:var(--gold);border-color:var(--gold-dark);color:var(--gold-ink);}
+  .winner-pill.open{background:var(--coral);border-color:var(--coral-dark);color:#fff8f5;}
+  .winner-board{margin:10px auto 0;justify-content:center;grid-template-columns:repeat(5,38px)!important;grid-auto-rows:38px!important;}
+  .winner-board .num-btn{width:38px!important;height:38px!important;font-size:13px!important;}
+
+  /* ===== 賽程設定 ===== */
+  .seg-toggle{display:flex;border:1.5px solid var(--line);border-radius:9px;overflow:hidden;margin-bottom:9px;}
+  .seg-toggle button{flex:1;border:none;border-radius:0;background:var(--paper);font-size:12px;padding:7px 6px;}
+  .seg-toggle button:hover:not(.active){background:var(--paper-dim);transform:none;}
+  .seg-toggle button.active{background:var(--ink);color:var(--gold);font-weight:700;}
+
+  .sched-editor{display:flex;flex-direction:column;gap:6px;}
+  .sched-row{
+    display:flex;align-items:center;gap:5px;padding:7px 9px;border-radius:9px;
+    background:var(--paper-dim);border:1.5px solid var(--line);
+  }
+  .sched-row .idx{
+    min-width:20px;height:20px;line-height:20px;text-align:center;border-radius:999px;
+    background:#0a0810;color:var(--gold);font-size:10px;font-weight:700;flex-shrink:0;
+    font-family:"IBM Plex Mono",monospace;
+  }
+  .sched-row .gname{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sched-row input{
+    width:50px;padding:4px 5px;border-radius:6px;border:1.5px solid var(--line);
+    font-size:13px;text-align:center;font-family:"IBM Plex Mono",monospace;background:#fff;color:var(--ink);
+  }
+  .sched-row .unit{font-size:11px;color:var(--ink-soft);}
+  .sched-row .mini{border:none;background:none;font-size:13px;padding:0 2px;color:var(--ink-soft);line-height:1;}
+  .sched-row .mini:hover:not(:disabled){color:var(--gold-dark);transform:none;}
+  .sched-row .mini:disabled{opacity:.2;}
+  .sched-row.locked{background:#e9e5dc;border-style:dashed;opacity:.85;}
+  .sched-row.locked .gname{color:var(--ink-soft);}
+  .sched-row .lock-tag{
+    font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;flex-shrink:0;
+    background:var(--ink);color:#c9c2e0;
+  }
+  .sched-row .lock-tag.now{background:var(--gold);color:var(--gold-ink);}
+  .sched-add{display:flex;gap:6px;}
+  .sched-add select{
+    flex:1;padding:6px 8px;border-radius:8px;border:1.5px solid var(--line);
+    font-size:13px;font-family:inherit;background:#fff;color:var(--ink);
+  }
+  .sched-note{font-size:11px;color:var(--ink-soft);line-height:1.5;}
+
+  /* 房內賽程面板（所有人都看得到） */
+  .sched-panel{background:var(--paper-dim);border-radius:10px;border:1px dashed var(--line);padding:8px 9px;}
+  .sched-panel .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;gap:6px;}
+  .sched-panel .head b{font-size:12px;letter-spacing:.5px;}
+  .sched-panel .head .prog{font-size:11px;font-family:"IBM Plex Mono",monospace;color:var(--ink-soft);}
+  .sched-stage{
+    display:flex;align-items:center;gap:6px;font-size:12px;padding:4px 6px;
+    border-radius:7px;color:var(--ink-soft);
+  }
+  .sched-stage .n{min-width:14px;font-family:"IBM Plex Mono",monospace;font-size:10px;}
+  .sched-stage .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sched-stage .x{font-family:"IBM Plex Mono",monospace;font-size:10px;}
+  .sched-stage.now{background:var(--ink);color:#f4ecd8;font-weight:700;}
+  .sched-stage.now .x{color:var(--gold);}
+  .sched-stage.done{opacity:.4;}
+  #editScheduleBtn{width:100%;font-size:12px;padding:5px;}
+
+  /* ===== 獎項編輯器 ===== */
+  .prize-editor{display:flex;flex-direction:column;gap:6px;}
+  .prize-row{
+    background:var(--paper);border:1.5px solid var(--line);border-radius:8px;
+    padding:6px;display:flex;flex-direction:column;gap:4px;
+  }
+  .prize-row .line2{display:flex;gap:4px;align-items:center;}
+  .prize-row .line2 input{width:100%;min-width:0;text-align:center;}
+  .prize-row .unit{font-size:10px;color:var(--ink-soft);flex-shrink:0;}
+  .prize-row .mini{
+    border:none;background:none;font-size:12px;padding:0 2px;
+    color:var(--ink-soft);line-height:1;flex-shrink:0;
+  }
+  .prize-row .mini:hover{color:var(--coral-dark);transform:none;}
+  .prize-empty{font-size:11px;color:var(--ink-soft);text-align:center;padding:6px;}
+  #lotAddPrizeBtn{width:100%;font-size:12px;padding:5px;}
+
+  /* ===== 觀戰模式 ===== */
+  .spectate-banner{
+    width:100%;max-width:470px;margin:0 0 12px;padding:12px 14px;text-align:center;
+    background:var(--ink);color:#f4ecd8;border-radius:12px;border:1.5px solid var(--gold-dark);
+  }
+  .spectate-banner .big{font-size:15px;font-weight:700;color:var(--gold);}
+  .spectate-banner .sub{font-size:12px;color:#c9c2e0;margin-top:4px;line-height:1.5;}
+  .col-center.spectating .public-grid,
+  .col-center.spectating .my-card-grid,
+  .col-center.spectating .cup-grid{opacity:.55;}
+
+  /* ===== 積分榜 ===== */
+  .score-panel{background:var(--paper-dim);border-radius:10px;border:1px dashed var(--line);padding:8px 9px;cursor:pointer;}
+  .score-panel:hover{border-color:var(--gold-dark);}
+  .score-panel .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;gap:6px;}
+  .score-panel .head b{font-size:12px;letter-spacing:.5px;}
+  .score-panel .head .more{font-size:10px;color:var(--gold-dark);}
+  .score-row{display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 4px;border-radius:6px;}
+  .score-row.me{background:#fbeecb;}
+  .score-row .medal{width:16px;flex-shrink:0;font-size:11px;text-align:center;}
+  .score-row .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .score-row .pt{font-family:"IBM Plex Mono",monospace;font-weight:700;flex-shrink:0;}
+  .score-empty{font-size:11px;color:var(--ink-soft);text-align:center;padding:2px;}
+
+  .score-modal{width:430px;max-height:80vh;overflow-y:auto;}
+  .score-item{border:1.5px solid var(--line);border-radius:10px;margin-bottom:6px;overflow:hidden;background:var(--paper);}
+  .score-item.me{border-color:var(--gold-dark);background:#fdf6e6;}
+  .score-head{display:flex;align-items:center;gap:9px;padding:9px 11px;cursor:pointer;}
+  .score-head:hover{background:var(--paper-dim);}
+  .score-head .rk{
+    min-width:24px;height:24px;line-height:24px;text-align:center;border-radius:999px;flex-shrink:0;
+    background:#0a0810;color:var(--gold);font-size:11px;font-weight:700;font-family:"IBM Plex Mono",monospace;
+  }
+  .score-head .nm{flex:1;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .score-head .pt{font-size:16px;font-weight:700;font-family:"IBM Plex Mono",monospace;color:var(--gold-dark);}
+  .score-head .caret{font-size:10px;color:var(--ink-soft);transition:transform .18s ease;}
+  .score-item.open .score-head .caret{transform:rotate(90deg);}
+  .score-detail{border-top:1px dashed var(--line);padding:6px 11px 9px;background:var(--paper-dim);}
+  .score-detail table{width:100%;border-collapse:collapse;font-size:12px;}
+  .score-detail td{padding:4px 2px;border-bottom:1px dotted var(--line);color:var(--ink-soft);}
+  .score-detail tr:last-child td{border-bottom:none;}
+  .score-detail td.g{width:96px;color:var(--ink);}
+  .score-detail td.r{width:64px;font-family:"IBM Plex Mono",monospace;}
+  .score-detail td.p{text-align:right;font-family:"IBM Plex Mono",monospace;font-weight:700;color:var(--ink);}
+  .score-detail .none{font-size:12px;color:var(--ink-soft);text-align:center;padding:6px;}
+  .score-sum{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-soft);
+    margin:2px 0 10px;padding-bottom:8px;border-bottom:1px dashed var(--line);}
+
+  /* ===== 撲克牌（21點／牛牛／比大小共用） ===== */
+  .pcard{
+    display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+    width:34px;height:46px;border-radius:6px;border:1.5px solid var(--line);background:#fff;
+    font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:14px;color:var(--ink);
+    line-height:1;flex-shrink:0;box-shadow:0 1px 2px rgba(24,20,44,.12);
+  }
+  .pcard .s{font-size:11px;font-weight:500;}
+  .pcard.red{color:#c62828;}
+  .pcard.back{
+    color:transparent;border-color:var(--ink-line);
+    background:repeating-linear-gradient(45deg,#241f42,#241f42 4px,#18142c 4px,#18142c 8px);
+  }
+  .pcard.deal{animation:cardDeal .35s ease backwards;}
+  @keyframes cardDeal{0%{transform:translateY(-14px) rotate(-8deg);opacity:0;}100%{transform:none;opacity:1;}}
+
+  .card-list{width:100%;max-width:470px;display:flex;flex-direction:column;gap:6px;}
+  .hand-row{display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:10px;background:var(--paper-dim);}
+  .hand-row.me{background:#fbeecb;box-shadow:inset 0 0 0 1.5px var(--gold);}
+  .hand-row.turn{box-shadow:inset 0 0 0 2px var(--coral);}
+  .hand-row.out{opacity:.45;}
+  .hand-row .who{
+    width:70px;font-size:12px;font-weight:600;flex-shrink:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .hand-row .cards{display:flex;gap:4px;flex:1;flex-wrap:wrap;min-width:0;}
+  .hand-row .sc{
+    font-size:12px;font-weight:700;font-family:"IBM Plex Mono",monospace;
+    min-width:60px;text-align:right;flex-shrink:0;color:var(--ink-soft);
+  }
+  .hand-row .sc.bust{color:var(--coral-dark);}
+  .hand-row .sc.top{color:var(--green-dark);}
+  .card-status{font-size:12px;color:var(--ink-soft);text-align:center;margin:2px 0 10px;min-height:16px;}
+  .card-actions{display:flex;gap:8px;justify-content:center;margin:10px 0 4px;flex-wrap:wrap;}
+  .card-result{
+    width:100%;max-width:470px;text-align:center;margin:0 0 12px;padding:12px;
+    background:var(--paper-dim);border-radius:12px;border:1.5px dashed var(--gold-dark);
+  }
+  .card-result .big{font-size:17px;font-weight:700;}
+  .card-result .who-win{color:var(--coral-dark);}
+  .card-result .sub{font-size:13px;color:var(--ink-soft);margin-top:3px;}
+
+  /* ===== 遊戲區共用容器 ===== */
+  .game-zone{width:100%;display:flex;flex-direction:column;align-items:center;}
+  .rule-settings textarea{
+    width:100%;padding:5px 7px;border-radius:6px;border:1.5px solid var(--line);font-size:12px;
+    font-family:inherit;background:#fff;color:var(--ink);resize:vertical;line-height:1.5;
+  }
+  .rule-settings textarea.locked{pointer-events:none;opacity:.6;}
+  .rule-row{display:flex;gap:6px;align-items:center;}
+  .rule-row span{font-size:12px;color:var(--ink-soft);}
+
+  /* ===== 終極密碼 ===== */
+  .pw-range-box{
+    display:flex;align-items:center;justify-content:center;gap:16px;margin:4px 0 12px;
+    padding:18px 26px;background:var(--ink);border-radius:14px;border:1.5px solid var(--ink-line);
+    box-shadow:inset 0 0 0 3px rgba(224,165,39,.15);
+  }
+  .pw-num{font-family:"IBM Plex Mono",monospace;font-size:38px;font-weight:700;color:var(--gold);line-height:1;}
+  .pw-sep{font-size:24px;color:#8b83a8;letter-spacing:2px;}
+  .pw-tip{font-size:12px;color:var(--ink-soft);margin-bottom:10px;text-align:center;}
+  .pw-input-row{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:12px;}
+  .pw-input-row input{
+    width:130px;padding:9px 10px;border-radius:9px;border:1.5px solid var(--line);
+    font-size:22px;text-align:center;font-family:"IBM Plex Mono",monospace;font-weight:700;
+    background:#fff;color:var(--ink);
+  }
+  .pw-input-row input:disabled{opacity:.45;background:var(--paper-dim);}
+  .pw-guess-list{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:440px;margin-top:4px;}
+  .pw-guess{
+    font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:700;padding:4px 11px;
+    border-radius:999px;background:var(--paper-dim);border:1.5px solid var(--line);
+    display:inline-flex;align-items:center;gap:5px;
+  }
+  .pw-guess .who{font-family:"Space Grotesk",sans-serif;font-weight:500;font-size:11px;color:var(--ink-soft);}
+  .pw-guess.low{border-color:#3a6bd1;color:#2b4f9e;}
+  .pw-guess.high{border-color:var(--coral-dark);color:var(--coral-dark);}
+  .pw-guess.hit{background:var(--coral);border-color:var(--coral-dark);color:#fff8f5;}
+  .pw-result{
+    width:100%;max-width:420px;text-align:center;margin:2px 0 12px;padding:14px;
+    background:var(--paper-dim);border-radius:12px;border:1.5px dashed var(--gold-dark);
+  }
+  .pw-result .big{font-size:17px;font-weight:700;margin-bottom:4px;}
+  .pw-result .who-hit{color:var(--coral-dark);}
+  .pw-result .sub{font-size:13px;color:var(--ink-soft);}
+  .pw-secret{font-family:"IBM Plex Mono",monospace;font-size:30px;font-weight:700;color:var(--gold-dark);margin-top:6px;}
+
+  /* ===== 抽獎：杯子蓋獎品 ===== */
+  .lot-banner{
+    width:100%;max-width:440px;margin:2px 0 12px;padding:12px 16px;text-align:center;
+    background:var(--ink);border-radius:14px;border:1.5px solid var(--ink-line);
+  }
+  .lot-banner .headline{font-size:15px;font-weight:700;color:var(--gold);}
+  .lot-banner .sub{font-size:12px;color:#8b83a8;margin-top:4px;font-family:"IBM Plex Mono",monospace;}
+  .cup-grid{display:grid;grid-template-columns:repeat(auto-fit,90px);gap:12px;justify-content:center;max-width:470px;}
+  .cup{
+    width:90px;height:108px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+    padding:6px 5px;position:relative;font-family:inherit;overflow:hidden;
+  }
+  .cup .cup-no{
+    position:absolute;top:4px;left:6px;font-size:10px;font-weight:700;
+    font-family:"IBM Plex Mono",monospace;color:var(--ink-soft);
+  }
+  .cup .emoji{font-size:36px;line-height:1;transition:transform .25s ease;}
+  .cup:disabled{cursor:not-allowed;}
+  .cup.pickable{border-color:var(--gold-dark);box-shadow:0 3px 0 var(--gold-dark);}
+  .cup.pickable:hover{transform:none;}
+  .cup.pickable:hover .emoji{transform:translateY(-9px);}
+  /* 已被掀走：鎖定變灰，只留下是誰掀的，內容保密到最後 */
+  .cup.locked{background:#e9e5dc;border-color:#cfc7b6;cursor:default;}
+  .cup.locked .emoji{filter:grayscale(1);opacity:.45;}
+  .cup.locked .picker{font-weight:700;color:var(--ink-soft);}
+  .cup.locked.mine{background:#f2e8cf;border-color:var(--gold-dark);box-shadow:inset 0 0 0 1.5px var(--gold-dark);}
+  .cup.locked.mine .emoji{filter:none;opacity:.7;}
+  .cup.just-locked{animation:cupClaim .45s ease;}
+  @keyframes cupClaim{0%{transform:scale(1);}45%{transform:scale(.88);}100%{transform:scale(1);}}
+
+  .cup.open{background:var(--paper-dim);border-style:dashed;}
+  .cup.open.mine{background:#fbeecb;border-style:solid;box-shadow:inset 0 0 0 2px var(--gold);}
+  .cup.open.blank{opacity:.75;}
+  .cup.open.blank .prize{color:var(--ink-soft);font-weight:500;}
+  .cup.unopened{opacity:.35;}
+  .cup .prize{font-size:12.5px;font-weight:700;line-height:1.25;word-break:break-all;text-align:center;}
+  .cup .picker{font-size:10px;color:var(--ink-soft);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* 全員掀完後的一次性揭曉：依杯號依序翻開 */
+  .cup.revealing{animation:cupReveal .45s ease backwards;}
+  @keyframes cupReveal{
+    0%{transform:rotateX(85deg) scale(.8);opacity:0;}
+    60%{transform:rotateX(-8deg) scale(1.04);opacity:1;}
+    100%{transform:none;opacity:1;}
+  }
+  .lot-leftover{
+    width:100%;max-width:440px;margin-top:10px;padding:9px 12px;text-align:center;
+    font-size:12px;color:var(--ink-soft);background:var(--paper-dim);border-radius:10px;border:1px dashed var(--line);
+  }
+  .lot-mine{
+    width:100%;max-width:440px;margin-top:12px;padding:12px;text-align:center;
+    background:var(--paper-dim);border-radius:12px;border:1.5px dashed var(--gold-dark);
+  }
+  .lot-mine .label{font-size:12px;color:var(--ink-soft);}
+  .lot-mine .prize{font-size:20px;font-weight:700;color:var(--coral-dark);margin-top:3px;word-break:break-all;}
+  .lot-empty{font-size:12px;color:var(--ink-soft);text-align:center;padding:10px;}
+  @media (max-width:940px){
+    .cup-grid{grid-template-columns:repeat(auto-fit,78px);gap:9px;}
+    .cup{width:78px;height:96px;}
+    .cup .emoji{font-size:30px;}
+    .pw-num{font-size:30px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="nicknameModal" class="modal-backdrop hidden">
+  <div class="modal">
+    <h3>先取個暱稱 👋</h3>
+    <input id="nicknameInput" type="text" maxlength="16" placeholder="輸入你的暱稱" />
+    <p class="muted" style="margin-top:-6px;">只會存在這台電腦。</p>
+    <button class="primary" id="saveNicknameBtn" style="width:100%;">進入</button>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="brand">
+    🎟️ Company Bingo <span class="ver mono" id="versionTag"></span>
+    <button id="helpBtn" class="small" style="margin-left:8px;">❓ 操作說明</button>
+  </div>
+  <div class="right">
+    <span id="roomLabel"></span>
+    <button id="leaveRoomBtn" class="small hidden">離開房間</button>
+    <a class="toggle" id="toggleLobbyBtn">顯示房間設定</a>
+  </div>
+</div>
+
+<div id="helpModal" class="modal-backdrop hidden">
+  <div class="modal help-modal">
+    <div class="flex-row-between" style="display:flex;justify-content:space-between;align-items:center;">
+      <h3 style="margin:0;">📖 操作說明</h3>
+      <button id="helpCloseBtn" style="padding:3px 9px;">✕</button>
+    </div>
+
+    <div class="help-section">
+      <div class="help-title">首頁可操作</div>
+      <ul>
+        <li>建立房間（名稱、密碼都非強制）、排賽程、加入房間、查看說明</li>
+        <li>房間列表會直接顯示每間房要玩哪些遊戲、各幾局，進去之前就看得到</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <div class="help-title">🗓️ 賽程（要玩什麼、玩幾局）</div>
+      <ul>
+        <li>建房時先選 <b>單一遊戲</b> 或 <b>多遊戲賽程</b></li>
+        <li>單一遊戲：挑一個遊戲，設定要玩幾局</li>
+        <li>多遊戲賽程：把想玩的遊戲加進清單，用 ↑↓ 排順序、各自設定局數，最多排 8 個</li>
+        <li>房內左上角的賽程面板<b>所有人都看得到</b>：整份清單、目前玩到哪一個、第幾局</li>
+        <li>一局打完，房主按左上按鈕推進到下一局；跑完整份賽程可以從頭再來</li>
+        <li>房主可在「尚未開始」狀態按「✏️ 編輯賽程」修改；<b>一改動，房裡每個人都會跳提示，日誌也會留紀錄</b></li>
+        <li><b>比賽一旦開打，已結束與進行中的階段就鎖住不能改</b>，只能調整後面還沒玩的順序、局數與積分（進度與積分不受影響）</li>
+        <li>還沒開打時整份賽程都可以自由調整，此時儲存會從第 1 局重新開始</li>
+        <li>左側「🎲 隨機排序」可以把所有玩家的順位重新洗牌，三種遊戲都適用</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <div class="help-title">🏅 積分與排名</div>
+      <ul>
+        <li>賽程裡每個遊戲都可以各自設定「贏一局拿幾分」，設 0 就是該遊戲不計分</li>
+        <li><b>每一局只有唯一勝者拿走該局的全部積分</b>，所以整場的積分總額 = Σ(局數 × 積分)，事先就算得出來（適合拿來換獎品或獎金）</li>
+        <li>同分一律靠加賽解決：牌局重新洗牌、賓果重新發號碼卡，只讓同分的人再比一次</li>
+        <li>抽獎的積分在獎項設定裡逐筆指定（名稱／積分／數量），抽到什麼就拿多少分</li>
+        <li>終極密碼要計分請用「獲勝・密碼專家」模式（猜中的人拿分）；「受罰」模式沒有唯一勝者，不會發積分</li>
+        <li>左欄的積分榜隨時看得到前三名，點開可以看完整排名，再點玩家可展開他在各遊戲拿了多少分</li>
+        <li>賽程跑完、房主選擇從頭再來時，會<b>詢問</b>要不要順便把積分歸零；選擇保留就能繼續累積下一圈。房主也可以在積分榜手動歸零</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <div class="help-title">🎮 三種遊戲</div>
+      <ul>
+        <li><b>🎟️ 賓果</b>：輪流叫號，連成指定條數就贏</li>
+        <li><b>🔢 終極密碼</b>：系統藏一個數字，依順位輪流猜，範圍愈縮愈小。可設定成「密碼專家」（猜中的人獲勝、拿積分）或傳統的「猜中者受罰」</li>
+        <li><b>🥤 抽獎</b>：房主設定杯子數量與獎項，獎品被打亂蓋在杯子下，玩家各挑一個，全員選完才一次開獎</li>
+        <li><b>🃏 21點</b>：明牌，依順位輪流要牌／停牌，最接近 21 點又沒爆的贏；全員爆牌則最接近 21 的贏</li>
+        <li><b>🐮 牛牛</b>：每人 5 張暗牌，任 3 張湊成 10 的倍數就成牛，剩 2 張的個位數是牛幾，各自開牌後結算</li>
+        <li><b>⚔️ 比大小</b>：每人抽指定張數的暗牌，比總點數，各自開牌後結算</li>
+        <li><b>三種牌局每局都會決出唯一勝者</b>：同分的人重新洗牌加賽，只有他們再比一次，直到分出勝負為止</li>
+        <li>左側可設定「用幾副牌」（1–4 副）。多副牌隨機性更高，人多時也才夠發</li>
+        <li>每一局（含每一輪加賽）都重新洗成完整牌堆，不會延用上一局的殘牌</li>
+        <li><b>先手每局輪替</b>，避免同一個人永遠第一個動作而長期佔優勢</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <div class="help-title">🔢 終極密碼怎麼玩</div>
+      <ul>
+        <li>房主在左側設定數字範圍（例如 1～100）與「猜中的人受罰／獲勝」</li>
+        <li>按「鎖定」→ 所有人準備 → 開局的那一刻系統才產生密碼</li>
+        <li>輪到你時輸入數字按送出（或直接按 Enter）；猜太小就把下限往上推，太大就把上限往下拉</li>
+        <li>猜過的數字都會列在下方，↑ 代表太小、↓ 代表太大</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <div class="help-title">🥤 抽獎怎麼玩</div>
+      <ul>
+        <li>房主在左側按「＋ 新增獎項」逐筆設定，每筆可填<b>名稱、積分、數量</b>（例如「二獎 5分 × 2個」）</li>
+        <li><b>杯子數量上限 = 參加人數</b>，這樣每個杯子一定有人掀，獎不會留在桌上沒發出去</li>
+        <li>獎項比杯子少時，剩下的杯子會自動填入「銘謝惠顧」</li>
+        <li>可選「依順位輪流」或「自由搶」，以及每人最多能選幾個杯子（0＝不限）</li>
+        <li>輪流模式建議先按左側「🎲 隨機排序」把順位打亂再開始</li>
+        <li><b>選走的杯子會鎖定變灰，只看得到是誰選的，裡面是什麼一律保密</b></li>
+        <li><b>等杯子全被選走（或每個人都選滿了），才會一次翻牌開獎</b></li>
+        <li>房主可按「重新設定」重來一輪</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <div class="help-title">進入房間後上方可操作</div>
+      <ul>
+        <li>離開房間、查看房間設定</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <div class="help-title">👑 房主可以做的事</div>
+      <ul>
+        <li>用「✏️ 編輯賽程」調整要玩哪些遊戲、順序與局數，本局結束後按左上按鈕推進到下一局</li>
+        <li>房內左側可設置各遊戲的規則（賓果條數、密碼範圍、杯子與獎項等）</li>
+        <li>左側可單獨點擊左側玩家名字，分配或取消他的順位；也可一鍵清除所有排序</li>
+        <li>按「鎖定」啟動準備流程；所有人準備好後自動開始遊戲</li>
+        <li>遊戲中可按「取消鎖定」結束本局；本局結束後可按「開始新的一局」（會自動刷新所有人的號碼、把旁觀者排進順位）</li>
+        <li>輪到的玩家離線太久時，可按「跳過此玩家」</li>
+        <li>把房主身份手動移交給其他在線玩家（👑→）</li>
+        <li>把任何玩家移出房間（🗑️，適合清掉離線很久的殘留玩家）</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <div class="help-title">👀 觀戰模式</div>
+      <ul>
+        <li>同分加賽時，沒進決戰名單的人會看到「☕ 你這一局已經出局，先休息一下」，並自動切換成觀戰</li>
+        <li>觀戰時看得到決戰過程、日誌與積分榜，只是不能動作；下一局開始就會自動回到牌桌</li>
+        <li>遊戲已經開始後才進房的人也會進觀戰模式，房主開下一局時會自動排進順位</li>
+      </ul>
+    </div>
+
+    <div class="help-section">
+      <div class="help-title">👤 一般玩家可以做的事</div>
+      <ul>
+        <li>第一次進站設定暱稱，之後自動記住，重新整理會自動回到原本的房間</li>
+        <li>大廳狀態下可以「刷新我的號碼」重新抽一張新卡</li>
+        <li>準備階段自己按「準備」或「取消」（取消會中止整個準備流程）</li>
+        <li>輪到自己時，點擊公共號碼或自己卡片上的號碼叫號（號碼一旦叫出就不能取消，避免爭議）</li>
+        <li>隨時可以按「炫耀」分享目前的 BINGO 條數（同一個條數最多炫耀三次）</li>
+        <li>達到設定的 BINGO 條數時：先搶先贏模式會出現「提交 BINGO」按鈕，需自行點擊爭搶；系統自動判定模式會直接被列入結果</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div id="lobbySection" class="lobby">
+  <div class="card">
+    <h2>建立房間</h2>
+    <label>房間名稱</label>
+    <input id="createRoomName" type="text" maxlength="20" placeholder="例如：夜班 Bingo" />
+    <label>玩什麼</label>
+    <div class="seg-toggle" id="createModeToggle">
+      <button type="button" data-mode="single" class="active">單一遊戲</button>
+      <button type="button" data-mode="multi">多遊戲賽程</button>
+    </div>
+    <div id="createScheduleEditor" class="sched-editor"></div>
+    <label>房間密碼（可留空）</label>
+    <input id="createRoomPwd" type="password" maxlength="20" />
+    <button class="primary" id="createRoomBtn" style="margin-top:10px;">建立房間</button>
+  </div>
+  <div class="card">
+    <h2>已建立房間</h2>
+    <ul id="roomListEl" class="room-list"></ul>
+  </div>
+</div>
+
+<div id="gameSection" class="game-wrap hidden">
+  <div class="col col-left">
+    <div class="sched-panel" id="schedPanelEl"></div>
+    <div class="score-panel" id="scorePanelEl"></div>
+    <button id="editScheduleBtn" class="hidden">✏️ 編輯賽程</button>
+
+    <div class="left-header">
+      <h3>玩家排序</h3>
+      <button id="lockBtn" class="primary" style="font-size:12px;padding:4px 8px;">鎖定</button>
+    </div>
+    <div id="ruleSettingsWrap" style="display:flex;flex-direction:column;gap:8px;">
+      <div class="rule-settings" id="bingoRulesEl">
+        <label>幾條算 BINGO</label>
+        <input id="bingoThresholdInput" type="number" min="1" max="12" value="1" />
+        <label>同時 BINGO 模式</label>
+        <select id="winModeSelect">
+          <option value="race">先搶先贏</option>
+          <option value="auto">系統自動判定</option>
+        </select>
+      </div>
+
+      <div class="rule-settings hidden" id="passwordRulesEl">
+        <label>數字範圍</label>
+        <div class="rule-row">
+          <input id="pwMinInput" type="number" value="1" />
+          <span>～</span>
+          <input id="pwMaxInput" type="number" value="100" />
+        </div>
+        <label>猜中的人</label>
+        <select id="pwHitRoleSelect">
+          <option value="win">獲勝・密碼專家（可計分）</option>
+          <option value="lose">受罰（傳統玩法，不計分）</option>
+        </select>
+        <div class="sched-note" id="pwScoreNoteEl"></div>
+      </div>
+
+      <div class="rule-settings hidden" id="cardCommonRulesEl">
+        <label>用幾副牌</label>
+        <input id="cardDeckInput" type="number" min="1" max="4" value="1" />
+        <div class="sched-note">多副牌隨機性更高，人多時也才夠發。用超過一副時同一張牌可能重複出現。</div>
+      </div>
+
+      <div class="rule-settings hidden" id="blackjackRulesEl">
+        <label>起手發幾張</label>
+        <input id="bjInitialInput" type="number" min="1" max="3" value="2" />
+        <div class="sched-note">A 自動算 1 或 11，J/Q/K 算 10，超過 21 點爆牌。同點數時比最大單張。</div>
+      </div>
+
+      <div class="rule-settings hidden" id="niuniuRulesEl">
+        <div class="sched-note">每人 5 張。任 3 張湊成 10 的倍數就成牛，剩下 2 張的個位數就是牛幾（0 算牛牛）。同牛時比最大單張。</div>
+      </div>
+
+      <div class="rule-settings hidden" id="compareRulesEl">
+        <label>每人抽幾張（比總點數）</label>
+        <input id="cmpCardsInput" type="number" min="1" max="5" value="1" />
+        <div class="sched-note">A=1、J=11、Q=12、K=13。同點數時比最大單張。</div>
+      </div>
+
+      <div class="rule-settings hidden" id="lotteryRulesEl">
+        <label>杯子數量</label>
+        <input id="lotCupCountInput" type="number" min="1" max="40" value="6" />
+        <label>獎項設定</label>
+        <div id="lotPrizeEditor" class="prize-editor"></div>
+        <button id="lotAddPrizeBtn" type="button">＋ 新增獎項</button>
+        <div class="sched-note" id="lotPrizeNoteEl"></div>
+        <label>沒抽到獎的杯子寫什麼</label>
+        <input id="lotBlankInput" type="text" maxlength="12" value="銘謝惠顧" />
+        <label>誰可以掀杯子</label>
+        <select id="lotPickModeSelect">
+          <option value="turn">依順位輪流</option>
+          <option value="free">自由搶（先搶先贏）</option>
+        </select>
+        <label>每人可掀幾個（0＝不限）</label>
+        <input id="lotPickLimitInput" type="number" min="0" max="40" value="1" />
+      </div>
+    </div>
+    <div class="order-btn-row">
+      <button id="randomOrderBtn">🎲 隨機排序</button>
+      <button id="clearOrderBtn">清除排序</button>
+    </div>
+    <div id="playerListEl"></div>
+    <button id="transferHostBtn" class="hidden">👑 移交房主</button>
+    <button id="deleteRoomBtn" class="danger hidden">刪除房間</button>
+  </div>
+
+  <div class="col col-center" id="numberZoneEl">
+    <div class="turn-row">
+      <span id="turnHintEl" class="turn-hint idle"></span>
+      <button id="skipTurnBtn" class="hidden" style="font-size:12px;padding:4px 8px;">跳過此玩家（離線）</button>
+    </div>
+
+    <div id="spectateBannerEl" class="spectate-banner hidden"></div>
+    <div id="winnersPanelEl" class="winners-panel hidden"></div>
+
+    <!-- ===== 賓果 ===== -->
+    <div id="bingoZoneEl" class="game-zone">
+      <div class="section-label">公共號碼 1–50</div>
+      <div id="publicGridEl" class="public-grid"></div>
+
+      <div class="ticket-divider"></div>
+      <div class="section-label">我的號碼</div>
+      <div id="myCardEl" class="my-card-grid"></div>
+
+      <div class="race-row hidden" id="raceRowEl">
+        <div class="race-alert">🎉 你已 BINGO！</div>
+        <button id="raceSubmitBtn">🏆 提交 BINGO</button>
+      </div>
+
+      <div class="card-actions-row">
+        <button id="refreshCardBtn">🔄 刷新我的號碼</button>
+      </div>
+      <div class="card-actions-row">
+        <button id="bragBtn" disabled>🎊 炫耀</button>
+        <div class="bingo-count-label">BINGO：<span id="bingoCountEl">0</span> 條</div>
+      </div>
+      <div id="bragMsgEl" class="brag-msg"></div>
+    </div>
+
+    <!-- ===== 終極密碼 ===== -->
+    <div id="passwordZoneEl" class="game-zone hidden">
+      <div id="pwResultEl" class="pw-result hidden"></div>
+
+      <div class="section-label">目前範圍</div>
+      <div class="pw-range-box">
+        <span class="pw-num" id="pwLoEl">1</span>
+        <span class="pw-sep">～</span>
+        <span class="pw-num" id="pwHiEl">100</span>
+      </div>
+      <div class="pw-tip" id="pwTipEl">房主鎖定並開始後，依順位輪流猜數字。</div>
+      <div class="pw-input-row">
+        <input id="pwGuessInput" type="number" placeholder="?" disabled />
+        <button class="primary" id="pwGuessBtn" disabled>送出</button>
+      </div>
+      <div class="section-label">猜過的數字</div>
+      <div id="pwGuessListEl" class="pw-guess-list"></div>
+    </div>
+
+    <!-- ===== 抽獎：杯子蓋獎品 ===== -->
+    <div id="lotteryZoneEl" class="game-zone hidden">
+      <div class="lot-banner">
+        <div class="headline" id="lotHeadlineEl">🥤 杯子抽獎</div>
+        <div class="sub" id="lotSubEl">房主設定杯子數量與獎項後開始</div>
+      </div>
+
+      <div class="card-actions-row" style="margin-top:0;">
+        <button class="primary hidden" id="lotStartBtn">🎬 打亂並開始</button>
+        <button class="danger hidden" id="lotResetBtn">↺ 重新設定</button>
+      </div>
+
+      <div id="lotCupGridEl" class="cup-grid" style="margin-top:12px;"></div>
+      <div id="lotMineEl" class="lot-mine hidden"></div>
+      <div id="lotLeftoverEl" class="lot-leftover hidden"></div>
+    </div>
+
+    <!-- ===== 撲克牌遊戲：21點 ／ 牛牛 ／ 比大小 ===== -->
+    <div id="cardZoneEl" class="game-zone hidden">
+      <div id="cardResultEl" class="card-result hidden"></div>
+      <div id="cardStatusEl" class="card-status"></div>
+      <div id="cardListEl" class="card-list"></div>
+      <div class="card-actions">
+        <button class="primary hidden" id="bjHitBtn">🃏 要牌</button>
+        <button class="hidden" id="bjStandBtn">✋ 停牌</button>
+        <button class="primary hidden" id="showHandBtn">👀 開牌</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col col-right">
+    <h3 style="margin:0 0 10px;font-size:14px;letter-spacing:.3px;">📻 日誌</h3>
+    <div id="logBoxEl" class="log-box"></div>
+  </div>
+</div>
+
+<div id="readyModal" class="modal-backdrop hidden">
+  <div class="modal" style="width:360px;">
+    <h3>準備開始？</h3>
+    <p class="muted" style="margin-top:-6px;">任何人按「取消」都會中止準備。</p>
+    <p id="hostAutoNoteEl" class="muted hidden" style="margin:0 0 10px;color:var(--gold-dark);font-weight:600;">👑 你是房主，系統已自動幫你準備，等待其他人</p>
+    <div class="ready-actions">
+      <button class="primary" id="readyBtn">準備</button>
+      <button id="readyCancelBtn">取消</button>
+    </div>
+    <div id="readyStatusEl"></div>
+  </div>
+</div>
+
+<div id="startToast" class="start-toast hidden">🎉 遊戲開始！</div>
+<div id="cursorHintEl" class="cursor-hint"></div>
+
+<div id="scoreModal" class="modal-backdrop hidden">
+  <div class="modal score-modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h3 style="margin:0;">🏅 總積分榜</h3>
+      <button id="scoreCloseBtn" style="padding:3px 9px;">✕</button>
+    </div>
+    <div class="score-sum" id="scoreSumEl"></div>
+    <div id="scoreListEl"></div>
+    <button id="scoreResetBtn" class="danger hidden" style="width:100%;margin-top:10px;font-size:12px;padding:6px;">積分歸零</button>
+  </div>
+</div>
+
+<div id="scheduleModal" class="modal-backdrop hidden">
+  <div class="modal" style="width:400px;">
+    <h3>✏️ 編輯賽程</h3>
+    <p class="muted" style="margin-top:-6px;" id="scheduleModalNoteEl"></p>
+    <div class="seg-toggle" id="roomModeToggle">
+      <button type="button" data-mode="single">單一遊戲</button>
+      <button type="button" data-mode="multi">多遊戲賽程</button>
+    </div>
+    <div id="roomScheduleEditor" class="sched-editor"></div>
+    <div class="ready-actions" style="margin-top:14px;">
+      <button class="primary" id="scheduleSaveBtn">儲存</button>
+      <button id="scheduleCancelBtn">取消</button>
+    </div>
+  </div>
+</div>
+
+<div id="transferModal" class="modal-backdrop hidden">
+  <div class="modal" style="width:320px;">
+    <h3>移交房主</h3>
+    <p class="muted" style="margin-top:-6px;">選擇要移交給誰</p>
+    <div id="transferPlayerListEl" class="transfer-player-list"></div>
+    <div class="ready-actions" style="margin-top:12px;">
+      <button class="primary" id="transferConfirmBtn">確認</button>
+      <button id="transferCancelBtn">取消</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import {
+  getDatabase, ref, set, get, update, remove, push,
+  onValue, onDisconnect, runTransaction
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
+import {
+  getAuth, signInAnonymously, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+/* ===== Firebase：沿用現有專案 ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyB4IBPbuGxztyzd8E3YTitMoTt8L19MSG0",
+  authDomain: "company-bingo.firebaseapp.com",
+  databaseURL: "https://company-bingo-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "company-bingo",
+  storageBucket: "company-bingo.appspot.com",
+  messagingSenderId: "844173689886",
+  appId: "1:844173689886:web:ac2f1888f542b138861a0f"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const auth = getAuth(app);
+
+/* ===== 版本號：每次修改都會更新，方便確認 GitHub 上是不是最新版 ===== */
+const APP_VERSION = "v30.0.0";
+document.getElementById("versionTag").textContent = APP_VERSION;
+console.log("Company Bingo", APP_VERSION);
+
+/* ===== 密碼雜湊（僅做基本遮蔽，不是高安全等級） ===== */
+async function sha256(text) {
+  const enc = new TextEncoder().encode(text);
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* ===== 本地身份 ===== */
+let myUid = localStorage.getItem("bingo_uid");
+if (!myUid) {
+  myUid = "u_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  localStorage.setItem("bingo_uid", myUid);
+}
+let myName = localStorage.getItem("bingo_nickname") || "";
+
+let currentRoomId = null;
+let isHost = false;
+let roomMeta = {};
+let players = {};
+let calledNumbers = {};
+let myBoard = [];
+let unsubs = [];
+let hadValidMeta = false; // 用來偵測房間是否被刪除
+
+/* 終極密碼 / 抽獎 的房內狀態 */
+let pwState = {};      // { lo, hi, secret, hitBy, hitByName, hitNum }
+let pwGuesses = {};    // push 出來的每一次猜測紀錄
+let lotState = {};     // { cups:[{prize,blank}], picks:{ cupIndex:{uid,name,at} } }
+let cardState = {};    // { game, per, hands:{uid:[卡號]}, stood:{uid}, shown:{uid} }
+let scores = {};       // { 局次key: { uid: { pts, game, stage, round, name } } }
+
+/* 遊戲類型設定表 */
+const GAME_TYPES = {
+  bingo:     { icon: "🎟️", label: "賓果" },
+  password:  { icon: "🔢", label: "終極密碼" },
+  lottery:   { icon: "🥤", label: "抽獎" },
+  blackjack: { icon: "🃏", label: "21點" },
+  niuniu:    { icon: "🐮", label: "牛牛" },
+  compare:   { icon: "⚔️", label: "比大小" }
+};
+const CARD_GAMES = ["blackjack", "niuniu", "compare"];
+/* ===== 賽程：房間可以排好幾個遊戲，每個遊戲各自設定要玩幾局 =====
+   meta.schedule      [{ type, rounds }]  依序進行
+   meta.scheduleIndex 目前進行到第幾個遊戲（0 起算）
+   meta.roundInStage  目前這個遊戲進行到第幾局（1 起算）           */
+function scheduleList() {
+  const sch = roomMeta.schedule;
+  if (Array.isArray(sch) && sch.length) {
+    const clean = sch
+      .filter(s => s && GAME_TYPES[s.type])
+      .map(s => ({
+        type: s.type,
+        rounds: Math.max(1, parseInt(s.rounds, 10) || 1),
+        // 沒有 points 欄位的舊賽程預設 1 分；明確寫 0 才是不計分
+        points: s.points === undefined || s.points === null
+          ? 1
+          : Math.min(999, Math.max(0, parseInt(s.points, 10) || 0))
+      }));
+    // 全部都是不認得的遊戲類型時 clean 會是空的，必須退回預設值，
+    // 否則 stageIndex() 會算出 -1、currentStage() 是 undefined，meta 監聽會拋錯而讓畫面凍結
+    if (clean.length) return clean;
+  }
+  // 舊房間沒有 schedule，就用單一遊戲的形式往回相容
+  return [{ type: GAME_TYPES[roomMeta.gameType] ? roomMeta.gameType : "bingo", rounds: 1, points: 1 }];
+}
+function stageIndex() {
+  return Math.min(Math.max(0, roomMeta.scheduleIndex || 0), scheduleList().length - 1);
+}
+function currentStage() { return scheduleList()[stageIndex()]; }
+function stagePoints() { return currentStage().points ?? 1; }
+function roundInStage() {
+  return Math.min(Math.max(1, roomMeta.roundInStage || 1), currentStage().rounds);
+}
+function totalRounds() { return scheduleList().reduce((n, s) => n + s.rounds, 0); }
+function currentRoundNo() {
+  const sch = scheduleList();
+  let n = 0;
+  for (let i = 0; i < stageIndex(); i++) n += sch[i].rounds;
+  return n + roundInStage();
+}
+/* 賽程一旦開打，已結束與進行中的階段就固定下來，只有後面還沒玩的可以調整。
+   回傳「不可更動的階段數」= 已完成的階段 + 目前這個階段。 */
+function scheduleStarted() {
+  return stageIndex() > 0 || roundInStage() > 1 || Object.keys(scores || {}).length > 0;
+}
+function lockedStageCount() {
+  return scheduleStarted() ? stageIndex() + 1 : 0;
+}
+
+function scheduleSummary(sch) {
+  return (sch || scheduleList())
+    .map(s => `${GAME_TYPES[s.type].icon}${GAME_TYPES[s.type].label}×${s.rounds}` +
+              (s.type === "lottery" ? "" : `(${s.points ?? 1}分)`))
+    .join(" → ");
+}
+/* 下一局要落在賽程的哪個位置 */
+function nextSchedulePosition() {
+  const sch = scheduleList();
+  const i = stageIndex(), r = roundInStage();
+  if (r < sch[i].rounds) return { index: i, round: r + 1, nextGame: false, wrapped: false };
+  if (i + 1 < sch.length) return { index: i + 1, round: 1, nextGame: true, wrapped: false };
+  return { index: 0, round: 1, nextGame: sch.length > 1, wrapped: true };
+}
+
+/* ===== 積分 =====
+   積分寫在固定路徑 scores/{局次}/{uid}，同一局同一人只會有一筆。
+   因此就算多個客戶端同時結算，寫進去的內容也一模一樣，不會重複加分。 */
+/* 局次 key 帶上「第幾圈」，這樣賽程繞回起點繼續累積積分時不會蓋掉上一圈的紀錄 */
+function roundKey() { return `c${roomMeta.scoreCycle || 0}s${stageIndex()}r${roundInStage()}`; }
+
+function scoreTotals() {
+  const t = {};
+  Object.values(scores || {}).forEach(round => {
+    Object.entries(round || {}).forEach(([uid, a]) => { t[uid] = (t[uid] || 0) + (a.pts || 0); });
+  });
+  return t;
+}
+function scoreBreakdown(uid) {
+  const rows = [];
+  Object.values(scores || {}).forEach(round => {
+    const a = (round || {})[uid];
+    if (a) rows.push(a);
+  });
+  return rows.sort((x, y) => (x.stage - y.stage) || (x.round - y.round));
+}
+/* 依名次排好的積分榜（沒得過分的玩家也會列出來，總分 0） */
+function scoreRanking() {
+  const t = scoreTotals();
+  const uids = new Set([...Object.keys(t), ...Object.keys(players)]);
+  return [...uids]
+    .map(uid => ({ uid, total: t[uid] || 0, name: (players[uid] || {}).name || nameFromScores(uid) }))
+    .sort((a, b) => b.total - a.total || (a.name || "").localeCompare(b.name || ""));
+}
+/* 已經離開房間的玩家，名字從積分紀錄裡撈 */
+function nameFromScores(uid) {
+  for (const round of Object.values(scores || {})) {
+    if (round && round[uid] && round[uid].name) return round[uid].name;
+  }
+  return "(已離開)";
+}
+
+/* 這一局誰該得幾分。回傳 null 代表資料還沒到齊，等下一次事件再算 */
+function computeRoundAwards() {
+  const gt = gameType();
+  const pts = stagePoints();
+  const out = {};
+
+  if (gt === "lottery") {
+    // 抽獎不看階段積分，改用每個獎項自己帶的分數
+    const picks = lotState.picks || {};
+    if (!Object.keys(picks).length) return null;
+    Object.values(picks).forEach(p => {
+      if (!p.uid) return;
+      out[p.uid] = (out[p.uid] || 0) + (p.points || 0);
+    });
+    return out;
+  }
+
+  if (gt === "password") {
+    const hitter = pwState.hitBy;
+    if (!hitter) return null;
+    // 積分要能換獎金，所以每局只發出固定總額給唯一勝者。
+    // 「猜中者受罰」沒有唯一勝者，該局不計分（規則面板會提醒房主）。
+    if ((roomMeta.pwHitRole || "lose") !== "win") return {};
+    out[hitter] = pts;
+    return out;
+  }
+
+  // 賓果與三種牌局：同分都已經靠加賽分出唯一勝者，勝者拿走該局全部積分
+  const uids = Object.keys(roomMeta.winners || {});
+  if (uids.length !== 1) return {};      // 還在加賽或無人達標 → 先不發分
+  out[uids[0]] = pts;
+  return out;
+}
+
+/* 本局結束時把積分寫進資料庫。
+   用資料庫上的一次性標記 meta/scoredRounds/{局次} 保證「每一局只結算一次」——
+   本機變數做不到這件事：任何人重新整理、或房主手動歸零之後，
+   都會有客戶端把已經刪掉的積分重新寫回去。 */
+async function writeRoundAwards() {
+  if (!currentRoomId) return;
+  if ((roomMeta.gameState || "lobby") !== "finished") return;
+  if (!Object.keys(players).length) return;   // players 還沒載入，寫下去名字會是空字串
+  const awards = computeRoundAwards();
+  if (!awards || !Object.keys(awards).length) return;
+
+  const key = roundKey(), gt = gameType();
+  const stage = stageIndex(), round = roundInStage();
+
+  // 搶下「由我結算這一局」，搶不到代表別人已經寫過了
+  const res = await runTransaction(
+    ref(db, `rooms/${currentRoomId}/meta/scoredRounds/${key}`),
+    (cur) => (cur ? undefined : true)
+  );
+  if (!res.committed) return;
+
+  const updates = {};
+  Object.entries(awards).forEach(([uid, p]) => {
+    updates[`rooms/${currentRoomId}/scores/${key}/${uid}`] = {
+      pts: p, game: gt, stage, round, name: (players[uid] || {}).name || ""
+    };
+  });
+  await update(ref(db), updates);
+}
+
+function gameType() {
+  const t = currentStage().type;
+  return GAME_TYPES[t] ? t : "bingo";
+}
+function isCardGame() { return CARD_GAMES.includes(gameType()); }
+/* 抽獎自己有「打亂並開始」，不跑房主鎖定→全員準備的流程 */
+function usesReadyFlow() { return gameType() !== "lottery"; }
+/* 哪些遊戲會依順位一個一個輪：牛牛與比大小是同時進行的，沒有輪次 */
+function usesTurnOrder() {
+  const gt = gameType();
+  if (gt === "lottery") return (roomMeta.lotPickMode || "turn") === "turn";
+  return gt === "bingo" || gt === "password" || gt === "blackjack";
+}
+
+let bragState = { count: 0, times: 0, locked: false };
+
+/* ===== DOM ===== */
+const $ = (id) => document.getElementById(id);
+
+const nicknameModal   = $("nicknameModal");
+const nicknameInput   = $("nicknameInput");
+const saveNicknameBtn = $("saveNicknameBtn");
+
+const roomLabelEl     = $("roomLabel");
+const leaveRoomBtn    = $("leaveRoomBtn");
+const toggleLobbyBtn  = $("toggleLobbyBtn");
+const helpBtn         = $("helpBtn");
+const helpModal       = $("helpModal");
+const helpCloseBtn    = $("helpCloseBtn");
+const lobbySection    = $("lobbySection");
+const gameSection     = $("gameSection");
+
+const createRoomName  = $("createRoomName");
+const createRoomPwd   = $("createRoomPwd");
+const createRoomBtn   = $("createRoomBtn");
+const roomListEl      = $("roomListEl");
+
+const playerListEl    = $("playerListEl");
+const clearOrderBtn   = $("clearOrderBtn");
+const deleteRoomBtn   = $("deleteRoomBtn");
+const transferHostBtn      = $("transferHostBtn");
+const transferModal        = $("transferModal");
+const transferPlayerListEl = $("transferPlayerListEl");
+const transferConfirmBtn   = $("transferConfirmBtn");
+const transferCancelBtn    = $("transferCancelBtn");
+const lockBtn         = $("lockBtn");
+const refreshCardBtn  = $("refreshCardBtn");
+const bingoThresholdInput = $("bingoThresholdInput");
+const winModeSelect       = $("winModeSelect");
+
+const numberZoneEl    = $("numberZoneEl");
+const turnHintEl      = $("turnHintEl");
+const skipTurnBtn     = $("skipTurnBtn");
+const spectateBannerEl = $("spectateBannerEl");
+const winnersPanelEl  = $("winnersPanelEl");
+const raceRowEl       = $("raceRowEl");
+const raceSubmitBtn   = $("raceSubmitBtn");
+const publicGridEl    = $("publicGridEl");
+const bragBtn         = $("bragBtn");
+const bingoCountEl    = $("bingoCountEl");
+const bragMsgEl       = $("bragMsgEl");
+const myCardEl        = $("myCardEl");
+const logBoxEl        = $("logBoxEl");
+
+const createModeToggle     = $("createModeToggle");
+const createScheduleEditor = $("createScheduleEditor");
+const schedPanelEl         = $("schedPanelEl");
+const scorePanelEl         = $("scorePanelEl");
+const scoreModal           = $("scoreModal");
+const scoreCloseBtn        = $("scoreCloseBtn");
+const scoreSumEl           = $("scoreSumEl");
+const scoreListEl          = $("scoreListEl");
+const scoreResetBtn        = $("scoreResetBtn");
+const editScheduleBtn      = $("editScheduleBtn");
+const scheduleModal        = $("scheduleModal");
+const roomModeToggle       = $("roomModeToggle");
+const roomScheduleEditor   = $("roomScheduleEditor");
+const scheduleSaveBtn      = $("scheduleSaveBtn");
+const scheduleModalNoteEl  = $("scheduleModalNoteEl");
+const scheduleCancelBtn    = $("scheduleCancelBtn");
+const bingoRulesEl    = $("bingoRulesEl");
+const passwordRulesEl = $("passwordRulesEl");
+const lotteryRulesEl  = $("lotteryRulesEl");
+const bingoZoneEl     = $("bingoZoneEl");
+const passwordZoneEl  = $("passwordZoneEl");
+const lotteryZoneEl   = $("lotteryZoneEl");
+
+const pwMinInput      = $("pwMinInput");
+const pwMaxInput      = $("pwMaxInput");
+const pwHitRoleSelect = $("pwHitRoleSelect");
+const pwScoreNoteEl   = $("pwScoreNoteEl");
+const pwLoEl          = $("pwLoEl");
+const pwHiEl          = $("pwHiEl");
+const pwTipEl         = $("pwTipEl");
+const pwGuessInput    = $("pwGuessInput");
+const pwGuessBtn      = $("pwGuessBtn");
+const pwGuessListEl   = $("pwGuessListEl");
+const pwResultEl      = $("pwResultEl");
+
+const lotCupCountInput  = $("lotCupCountInput");
+const lotPrizeEditor    = $("lotPrizeEditor");
+const lotAddPrizeBtn    = $("lotAddPrizeBtn");
+const lotPrizeNoteEl    = $("lotPrizeNoteEl");
+const lotBlankInput     = $("lotBlankInput");
+const lotPickModeSelect = $("lotPickModeSelect");
+const lotPickLimitInput = $("lotPickLimitInput");
+const lotHeadlineEl   = $("lotHeadlineEl");
+const lotSubEl        = $("lotSubEl");
+const lotStartBtn     = $("lotStartBtn");
+const lotResetBtn     = $("lotResetBtn");
+const lotCupGridEl    = $("lotCupGridEl");
+const lotMineEl       = $("lotMineEl");
+const lotLeftoverEl   = $("lotLeftoverEl");
+const randomOrderBtn  = $("randomOrderBtn");
+
+const blackjackRulesEl = $("blackjackRulesEl");
+const niuniuRulesEl    = $("niuniuRulesEl");
+const compareRulesEl   = $("compareRulesEl");
+const cardCommonRulesEl = $("cardCommonRulesEl");
+const cardDeckInput    = $("cardDeckInput");
+const bjInitialInput   = $("bjInitialInput");
+const cmpCardsInput    = $("cmpCardsInput");
+const cardZoneEl       = $("cardZoneEl");
+const cardResultEl     = $("cardResultEl");
+const cardStatusEl     = $("cardStatusEl");
+const cardListEl       = $("cardListEl");
+const bjHitBtn         = $("bjHitBtn");
+const bjStandBtn       = $("bjStandBtn");
+const showHandBtn      = $("showHandBtn");
+
+const readyModal      = $("readyModal");
+const readyBtn        = $("readyBtn");
+const readyCancelBtn  = $("readyCancelBtn");
+const readyStatusEl   = $("readyStatusEl");
+const hostAutoNoteEl  = $("hostAutoNoteEl");
+const startToastEl    = $("startToast");
+const cursorHintEl    = $("cursorHintEl");
+const ruleSettingsWrap = $("ruleSettingsWrap");
+
+/* ===== 工具 ===== */
+let startToastTimer = null;
+function showToast(text) {
+  if (startToastTimer) clearTimeout(startToastTimer);
+  startToastEl.textContent = text;
+  startToastEl.classList.remove("hidden");
+  requestAnimationFrame(() => startToastEl.classList.add("show"));
+  startToastTimer = setTimeout(() => {
+    startToastEl.classList.remove("show");
+    setTimeout(() => startToastEl.classList.add("hidden"), 320);
+  }, 2200);
+}
+
+/* 滑鼠位置提示：同一時間只有一個，重複觸發只重設位置與淡出計時，不疊加 */
+let cursorHintTimer = null;
+function showCursorHint(x, y, text) {
+  cursorHintEl.textContent = text;
+  cursorHintEl.style.left = x + "px";
+  cursorHintEl.style.top = y + "px";
+  cursorHintEl.classList.add("show");
+  if (cursorHintTimer) clearTimeout(cursorHintTimer);
+  cursorHintTimer = setTimeout(() => {
+    cursorHintEl.classList.remove("show");
+    cursorHintTimer = null;
+  }, 1800);
+}
+
+ruleSettingsWrap.addEventListener("click", (e) => {
+  if (!currentRoomId) return;
+  const state = roomMeta.gameState || "lobby";
+  if (!isHost) { showCursorHint(e.clientX, e.clientY, "只有房主能調整這裡"); return; }
+  if (state !== "lobby") { showCursorHint(e.clientX, e.clientY, "遊戲進行中，若要更動請開新一局"); }
+});
+
+/* 每位玩家依 uid 固定分配一個顏色，全站（頭像／日誌／號碼球）統一使用 */
+const PLAYER_COLORS = ["#e2543f","#2f8f6f","#3a6bd1","#b8860b","#8e44ad","#c2185b","#0e7c86","#c76b1c","#5c6bc0","#2e7d32"];
+function colorForUid(uid) {
+  if (!uid) return "#6b7280";
+  let hash = 0;
+  for (let i = 0; i < uid.length; i++) hash = (hash * 31 + uid.charCodeAt(i)) >>> 0;
+  return PLAYER_COLORS[hash % PLAYER_COLORS.length];
+}
+function escapeHtml(str) {
+  return String(str || "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+function randomBoard() {
+  const nums = Array.from({ length: 50 }, (_, i) => i + 1);
+  for (let i = nums.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [nums[i], nums[j]] = [nums[j], nums[i]];
+  }
+  return nums.slice(0, 25);
+}
+function pushLog(text, ts, uid) {
+  if (!currentRoomId) return;
+  const time = ts != null ? ts : Date.now();
+  const logRef = push(ref(db, `rooms/${currentRoomId}/logs`));
+  const updates = {};
+  updates[`rooms/${currentRoomId}/logs/${logRef.key}`] = { text, timestamp: time, uid: uid !== undefined ? uid : myUid };
+  updates[`rooms/${currentRoomId}/meta/lastActivityAt`] = Date.now(); // 記錄最後活動時間，供閒置房間自動清理判斷
+  update(ref(db), updates);
+}
+function orderedPlayers() {
+  return Object.entries(players)
+    .filter(([, p]) => p.order != null)
+    .sort((a, b) => a[1].order - b[1].order);
+}
+/* 加賽時只剩同分的人在場；沒有加賽名單就是全員 */
+function finalistSet() {
+  const f = roomMeta.finalists;
+  return Array.isArray(f) && f.length ? new Set(f) : null;
+}
+function isActivePlayer(uid) {
+  const set = finalistSet();
+  return !set || set.has(uid);
+}
+function activeOrdered() {
+  const set = finalistSet();
+  return orderedPlayers().filter(([uid]) => !set || set.has(uid));
+}
+function nextAvailableOrder() {
+  const used = new Set(Object.values(players).map(p => p.order).filter(v => v != null));
+  let i = 1; while (used.has(i)) i++;
+  return i;
+}
+function calcBingoLines(board, selectedSet) {
+  if (board.length !== 25) return 0;
+  const hit = (i) => selectedSet.has(board[i]);
+  let lines = 0;
+  for (let r = 0; r < 5; r++) if ([0,1,2,3,4].every(c => hit(r*5+c))) lines++;
+  for (let c = 0; c < 5; c++) if ([0,1,2,3,4].every(r => hit(r*5+c))) lines++;
+  if ([0,1,2,3,4].every(i => hit(i*6))) lines++;
+  if ([0,1,2,3,4].every(i => hit((i+1)*4))) lines++;
+  return lines;
+}
+
+/* ===== 匿名登入（配合資料庫規則需要 auth != null） ===== */
+signInAnonymously(auth).catch(err => {
+  console.error("匿名登入失敗", err);
+  alert("登入 Firebase 失敗，請確認已在 Firebase 主控台開啟 Anonymous 登入方式。");
+});
+onAuthStateChanged(auth, (user) => {
+  if (user) initNickname();
+});
+
+/* ===== 昵称流程 ===== */
+function initNickname() {
+  if (myName) tryAutoRejoin();
+  else nicknameModal.classList.remove("hidden");
+}
+saveNicknameBtn.addEventListener("click", () => {
+  const name = nicknameInput.value.trim();
+  if (!name) { alert("暱稱不能空白"); return; }
+  myName = name;
+  localStorage.setItem("bingo_nickname", myName);
+  nicknameModal.classList.add("hidden");
+  tryAutoRejoin();
+});
+
+async function tryAutoRejoin() {
+  const lastRoomId = localStorage.getItem("bingo_last_room");
+  if (lastRoomId) {
+    const snap = await get(ref(db, `rooms/${lastRoomId}/meta`));
+    if (snap.exists()) { await joinRoomById(lastRoomId, null, true); return; }
+    localStorage.removeItem("bingo_last_room");
+  }
+  showLobby();
+  listenRoomList();
+}
+
+/* ===== 大廳 / 房間列表 ===== */
+let roomListUnsub = null;
+function listenRoomList() {
+  if (roomListUnsub) return;
+  const STALE_ROOM_MS = 30 * 60 * 1000; // 所有玩家離線滿 30 分鐘，順手清理閒置房間
+  roomListUnsub = onValue(ref(db, "rooms"), (snap) => {
+    const val = snap.val() || {};
+    roomListEl.innerHTML = "";
+    const now = Date.now();
+    const entries = Object.entries(val)
+      .filter(([, r]) => r.meta)
+      .filter(([roomId, r]) => {
+        const lastActivity = r.meta.lastActivityAt || r.meta.createdAt || 0;
+        const anyOnline = Object.values(r.players || {}).some(p => p.online === true);
+        if (!anyOnline && (now - lastActivity) > STALE_ROOM_MS) {
+          remove(ref(db, `rooms/${roomId}`)).catch(() => {});
+          return false; // 這輪畫面就先不顯示，等刪除完成後列表會自動更新
+        }
+        return true;
+      })
+      .sort((a, b) => (a[1].meta.createdAt || 0) - (b[1].meta.createdAt || 0));
+
+    if (!entries.length) {
+      const li = document.createElement("li");
+      li.className = "muted";
+      li.textContent = "目前沒有房間，建立一個吧。";
+      roomListEl.appendChild(li);
+      return;
+    }
+    for (const [roomId, room] of entries) {
+      const li = document.createElement("li");
+      const left = document.createElement("span");
+      left.className = "name";
+      // 進房之前就先看到這間房要玩什麼、排了幾局
+      const rawSch = Array.isArray(room.meta.schedule) && room.meta.schedule.length
+        ? room.meta.schedule
+        : [{ type: room.meta.gameType, rounds: 1 }];
+      const sch = rawSch
+        .filter(s => s && GAME_TYPES[s.type])
+        .map(s => ({ type: s.type, rounds: Math.max(1, parseInt(s.rounds, 10) || 1) }));
+      const list = sch.length ? sch : [{ type: "bingo", rounds: 1 }];
+      const icons = list.map(s => GAME_TYPES[s.type].icon).join("");
+      const total = list.reduce((n, s) => n + s.rounds, 0);
+
+      left.textContent = `${icons} ` + (room.meta.hasPassword ? "🔒 " : "") + (room.meta.name || "未命名房間");
+      const typeTag = document.createElement("span");
+      typeTag.className = "muted";
+      typeTag.style.marginLeft = "6px";
+      typeTag.textContent = list.length > 1
+        ? `賽程 ${list.map(s => GAME_TYPES[s.type].label + "×" + s.rounds).join(" → ")}（共 ${total} 局）`
+        : `${GAME_TYPES[list[0].type].label} ${total} 局`;
+      left.appendChild(typeTag);
+
+      const joinBtn = document.createElement("button");
+      joinBtn.textContent = "加入";
+      joinBtn.addEventListener("click", async () => {
+        let pwd = "";
+        if (room.meta.hasPassword) pwd = prompt("此房間需要密碼：") || "";
+        await joinRoomById(roomId, pwd, false);
+      });
+
+      li.appendChild(left); li.appendChild(joinBtn);
+      roomListEl.appendChild(li);
+    }
+  });
+}
+
+/* ===== 賽程編輯器：建房表單與房內「編輯賽程」視窗共用同一套元件 ===== */
+function makeScheduleEditor(container, toggleEl) {
+  const state = { mode: "single", locked: 0, draft: [{ type: "bingo", rounds: 1, points: 1 }] };
+  let noteEl = null;
+
+  const gameLabel = (t) => `${GAME_TYPES[t].icon} ${GAME_TYPES[t].label}`;
+  const totalOf = (d) => d.reduce((n, s) => n + s.rounds, 0);
+
+  function updateNote() {
+    if (!noteEl) return;
+    noteEl.textContent = state.draft.length
+      ? `順序：${scheduleSummary(state.draft)}　共 ${totalOf(state.draft)} 局\n` +
+        `括號內是贏一局可拿的積分，設 0 代表該遊戲不計分；抽獎的積分寫在獎項清單裡。`
+      : "";
+  }
+  function mini(text, disabled, fn) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "mini"; b.textContent = text; b.disabled = disabled;
+    b.addEventListener("click", fn);
+    return b;
+  }
+  function swap(a, b) {
+    [state.draft[a], state.draft[b]] = [state.draft[b], state.draft[a]];
+    render();
+  }
+  function gameSelect(value) {
+    const sel = document.createElement("select");
+    Object.keys(GAME_TYPES).forEach(k => {
+      const o = document.createElement("option");
+      o.value = k; o.textContent = gameLabel(k);
+      if (k === value) o.selected = true;
+      sel.appendChild(o);
+    });
+    return sel;
+  }
+
+  function render() {
+    container.innerHTML = "";
+    state.draft.forEach((row, i) => {
+      const isLocked = i < state.locked;
+      const el = document.createElement("div");
+      el.className = "sched-row" + (isLocked ? " locked" : "");
+
+      const idx = document.createElement("span");
+      idx.className = "idx";
+      idx.textContent = i + 1;
+      el.appendChild(idx);
+
+      // 已結束／進行中的階段：唯讀，只顯示內容與狀態標籤
+      if (isLocked) {
+        const nm = document.createElement("span");
+        nm.className = "gname";
+        nm.textContent = gameLabel(row.type);
+        const info = document.createElement("span");
+        info.className = "unit";
+        info.textContent = `${row.rounds}局` + (row.type === "lottery" ? "" : `·${row.points ?? 1}分`);
+        const tag = document.createElement("span");
+        const isNow = i === state.locked - 1;
+        tag.className = "lock-tag" + (isNow ? " now" : "");
+        tag.textContent = isNow ? "進行中" : "已結束";
+        el.appendChild(nm); el.appendChild(info); el.appendChild(tag);
+        container.appendChild(el);
+        return;
+      }
+
+      if (state.mode === "single") {
+        const sel = gameSelect(row.type);
+        sel.style.cssText = "flex:1;padding:5px 7px;border-radius:6px;border:1.5px solid var(--line);font-size:13px;font-family:inherit;background:#fff;color:var(--ink);";
+        // 抽獎與其他遊戲的欄位不同（抽獎的分數寫在獎項裡），換類型必須整列重畫
+        sel.addEventListener("change", () => { row.type = sel.value; render(); });
+        el.appendChild(sel);
+      } else {
+        const nm = document.createElement("span");
+        nm.className = "gname";
+        nm.textContent = gameLabel(row.type);
+        el.appendChild(nm);
+      }
+
+      const rounds = document.createElement("input");
+      rounds.type = "number"; rounds.min = "1"; rounds.max = "20"; rounds.value = row.rounds;
+      rounds.title = "要玩幾局";
+      rounds.addEventListener("change", () => {
+        let v = parseInt(rounds.value, 10);
+        if (!Number.isFinite(v) || v < 1) v = 1;
+        if (v > 20) v = 20;
+        rounds.value = v; row.rounds = v; updateNote();
+      });
+      el.appendChild(rounds);
+      const unit = document.createElement("span");
+      unit.className = "unit"; unit.textContent = "局";
+      el.appendChild(unit);
+
+      // 抽獎的積分寫在獎項清單裡（每個獎自己帶分數），所以這裡不給階段積分
+      if (row.type === "lottery") {
+        const na = document.createElement("span");
+        na.className = "unit"; na.style.flexShrink = "0";
+        na.textContent = "獎項帶分";
+        na.title = "抽獎的積分由左側「獎項清單」每一行自己指定";
+        el.appendChild(na);
+      } else {
+        const pts = document.createElement("input");
+        pts.type = "number"; pts.min = "0"; pts.max = "999"; pts.value = row.points ?? 1;
+        pts.title = "贏一局可以拿幾分（0 = 這個遊戲不計分）";
+        pts.addEventListener("change", () => {
+          let v = parseInt(pts.value, 10);
+          if (!Number.isFinite(v) || v < 0) v = 0;
+          if (v > 999) v = 999;
+          pts.value = v; row.points = v; updateNote();
+        });
+        el.appendChild(pts);
+        const pu = document.createElement("span");
+        pu.className = "unit"; pu.textContent = "分";
+        el.appendChild(pu);
+      }
+
+      if (state.mode === "multi") {
+        // 不能把還沒玩的階段往上搬到「進行中」的前面
+        el.appendChild(mini("↑", i <= state.locked, () => swap(i, i - 1)));
+        el.appendChild(mini("↓", i === state.draft.length - 1, () => swap(i, i + 1)));
+        el.appendChild(mini("🗑", state.draft.length - state.locked <= 1, () => { state.draft.splice(i, 1); render(); }));
+      }
+      container.appendChild(el);
+    });
+
+    if (state.mode === "multi") {
+      const add = document.createElement("div");
+      add.className = "sched-add";
+      const sel = gameSelect(null);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "＋ 加入賽程";
+      btn.addEventListener("click", () => {
+        if (state.draft.length >= 8) { alert("賽程最多排 8 個遊戲"); return; }
+        state.draft.push({ type: sel.value, rounds: 1, points: 1 });
+        render();
+      });
+      add.appendChild(sel); add.appendChild(btn);
+      container.appendChild(add);
+    }
+
+    noteEl = document.createElement("div");
+    noteEl.className = "sched-note";
+    container.appendChild(noteEl);
+    updateNote();
+  }
+
+  function setMode(mode) {
+    // 賽程開打後前面的階段被鎖住，一律用清單模式編輯後半段
+    state.mode = (state.locked > 0 || mode === "multi") ? "multi" : "single";
+    toggleEl.classList.toggle("hidden", state.locked > 0);
+    if (state.mode === "single" && state.draft.length > 1) state.draft = [state.draft[0]];
+    if (!state.draft.length) state.draft = [{ type: "bingo", rounds: 1, points: 1 }];
+    [...toggleEl.querySelectorAll("button[data-mode]")]
+      .forEach(b => b.classList.toggle("active", b.dataset.mode === state.mode));
+    render();
+  }
+
+  toggleEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-mode]");
+    if (btn) setMode(btn.dataset.mode);
+  });
+
+  setMode("single");
+
+  return {
+    get: () => state.draft.map(s => ({ type: s.type, rounds: s.rounds, points: s.points ?? 1 })),
+    load(list, locked) {
+      state.draft = (list && list.length ? list : [{ type: "bingo", rounds: 1, points: 1 }])
+        .map(s => ({ type: s.type, rounds: s.rounds, points: s.points ?? 1 }));
+      state.locked = Math.min(locked || 0, state.draft.length);
+      setMode(state.locked > 0 || state.draft.length > 1 ? "multi" : "single");
+    },
+    lockedCount: () => state.locked
+  };
+}
+const createSchedule = makeScheduleEditor(createScheduleEditor, createModeToggle);
+const roomSchedule   = makeScheduleEditor(roomScheduleEditor, roomModeToggle);
+
+createRoomBtn.addEventListener("click", async () => {
+  const name = createRoomName.value.trim() || "未命名房間";
+  const pwd  = createRoomPwd.value || "";
+  const passwordHash = pwd ? await sha256(pwd) : null;
+
+  const newRoomRef = push(ref(db, "rooms"));
+  const roomId = newRoomRef.key;
+
+  const schedule = createSchedule.get();
+
+  await set(ref(db, `rooms/${roomId}/meta`), {
+    name, hostId: myUid, hasPassword: !!pwd, passwordHash,
+    createdAt: Date.now(), lastActivityAt: Date.now(), gameState: "lobby", turnIndex: 0, turnStart: 0,
+    schedule, scheduleIndex: 0, roundInStage: 1, gameType: schedule[0].type,
+    bingoThreshold: 1, winMode: "race",
+    pwMin: 1, pwMax: 100, pwHitRole: "lose",
+    lotCupCount: 6, lotPrizes: "", lotBlank: "銘謝惠顧", lotPickMode: "turn", lotPickLimit: 1,
+    cardDecks: 1, bjInitial: 2, cmpCards: 1
+  });
+
+  createRoomName.value = ""; createRoomPwd.value = "";
+  await joinRoomById(roomId, pwd, true);
+});
+
+/* 離開某房間的共用清理邏輯：移除玩家資料與卡片，房間空了就整個刪除 */
+async function leaveRoomCleanup(roomId) {
+  if (!roomId) return;
+  cancelPresence(roomId); // 先取消斷線時的自動標記，避免之後憑空冒出離線幽靈玩家
+  // 用 update 一併寫 lastActivityAt：其他人的 meta 監聽才會重算「杯子上限 = 參加人數」
+  try {
+    const logRef = push(ref(db, `rooms/${roomId}/logs`));
+    await update(ref(db), {
+      [`rooms/${roomId}/logs/${logRef.key}`]: { text: `${myName} 離開房間`, timestamp: Date.now(), uid: myUid },
+      [`rooms/${roomId}/meta/lastActivityAt`]: Date.now()
+    });
+  } catch (e) {}
+  await remove(ref(db, `rooms/${roomId}/players/${myUid}`));
+  await remove(ref(db, `rooms/${roomId}/boards/${myUid}`));
+  const remainSnap = await get(ref(db, `rooms/${roomId}/players`));
+  const remain = remainSnap.val() || {};
+  if (!Object.keys(remain).length) {
+    await remove(ref(db, `rooms/${roomId}`));
+  }
+}
+
+function cancelPresence(roomId) {
+  if (!roomId) return;
+  try { onDisconnect(ref(db, `rooms/${roomId}/players/${myUid}/online`)).cancel(); } catch (e) {}
+}
+
+async function joinRoomById(roomId, pwdOrNull, skipPwdCheck) {
+  // 避免「同時掛在多個房間」：切換房間前，先自動離開目前所在的房間
+  if (currentRoomId && currentRoomId !== roomId) {
+    if (!confirm("你目前在另一個房間，加入新房間會自動離開原本的房間，確定要繼續嗎？")) return;
+    const leavingId = currentRoomId;
+    clearSubs();                    // 先退訂，避免刪自己時誤判成「被移除」
+    currentRoomId = null;
+    await leaveRoomCleanup(leavingId);
+  }
+
+  const metaSnap = await get(ref(db, `rooms/${roomId}/meta`));
+  if (!metaSnap.exists()) { alert("房間不存在"); return; }
+  const meta = metaSnap.val();
+
+  if (!skipPwdCheck && meta.hasPassword) {
+    const hash = await sha256(pwdOrNull || "");
+    if (hash !== meta.passwordHash) { alert("密碼錯誤"); return; }
+  }
+
+  const playersSnap = await get(ref(db, `rooms/${roomId}/players`));
+  const allPlayers = playersSnap.val() || {};
+  const already = allPlayers[myUid];
+
+  await update(ref(db, `rooms/${roomId}/players/${myUid}`), {
+    name: myName,
+    joinedAt: already && already.joinedAt ? already.joinedAt : Date.now(),
+    online: true
+  });
+
+  const boardSnap = await get(ref(db, `rooms/${roomId}/boards/${myUid}/numbers`));
+  if (!boardSnap.exists()) {
+    await set(ref(db, `rooms/${roomId}/boards/${myUid}`), { numbers: randomBoard(), version: 1 });
+  }
+
+  // 只有在「大廳」狀態加入才自動分配排序；遊戲已經開始（準備中／進行中／已結束）才加入的人先當旁觀者，
+  // 不會插隊打亂目前的輪次計算，要等房主開新的一局時才會自動被排進去
+  const roomState = meta.gameState || "lobby";
+  const myOrder = already && already.order;
+  if (myOrder == null && roomState === "lobby") {
+    const used = new Set(Object.values(allPlayers).map(p => p.order).filter(v => v != null));
+    let i = 1; while (used.has(i)) i++;
+    await update(ref(db, `rooms/${roomId}/players/${myUid}`), { order: i });
+  }
+
+  currentRoomId = roomId;
+  isHost = meta.hostId === myUid;
+  hadValidMeta = false;
+  localStorage.setItem("bingo_last_room", roomId);
+
+  if (roomListUnsub) { roomListUnsub(); roomListUnsub = null; }
+
+  showGame();
+  pushLog(`${myName} 加入房間`);
+  subscribeRoom();
+  setupPresence(roomId);
+}
+
+/* ===== 顯示切換 ===== */
+function showLobby() {
+  lobbySection.classList.remove("hidden");
+  gameSection.classList.add("hidden");
+  leaveRoomBtn.classList.add("hidden");
+  toggleLobbyBtn.textContent = "收合房間設定";
+  roomLabelEl.textContent = "";
+  numberZoneEl.classList.remove("my-turn");
+}
+function showGame() {
+  lobbySection.classList.add("hidden");
+  gameSection.classList.remove("hidden");
+  leaveRoomBtn.classList.remove("hidden");
+  toggleLobbyBtn.textContent = "顯示房間設定";
+}
+toggleLobbyBtn.addEventListener("click", () => {
+  if (!currentRoomId) { listenRoomList(); return; } // 純大廳狀態，永遠保持可見＋即時
+  const hiding = !lobbySection.classList.contains("hidden");
+  if (hiding) {
+    lobbySection.classList.add("hidden");
+    toggleLobbyBtn.textContent = "顯示房間設定";
+    if (roomListUnsub) { roomListUnsub(); roomListUnsub = null; }
+  } else {
+    lobbySection.classList.remove("hidden");
+    toggleLobbyBtn.textContent = "收合房間設定";
+    listenRoomList();
+  }
+});
+
+helpBtn.addEventListener("click", () => helpModal.classList.remove("hidden"));
+helpCloseBtn.addEventListener("click", () => helpModal.classList.add("hidden"));
+helpModal.addEventListener("click", (e) => { if (e.target === helpModal) helpModal.classList.add("hidden"); });
+
+/* ===== 離開房間 / 房間被刪除 ===== */
+leaveRoomBtn.addEventListener("click", async () => {
+  if (!currentRoomId) return;
+  const roomId = currentRoomId;
+  // 一定要先退訂再刪自己的玩家節點：否則 players 監聽會立刻觸發，
+  // 把「主動離開」誤判成「被房主移除」而跳出錯誤警告
+  clearSubs();
+  currentRoomId = null;
+  await leaveRoomCleanup(roomId);
+  localStorage.removeItem("bingo_last_room");
+  showLobby();
+  listenRoomList();
+});
+
+deleteRoomBtn.addEventListener("click", async () => {
+  if (!isHost || !currentRoomId) return;
+  if (!confirm("確定要刪除整個房間嗎？所有人都會被移出。")) return;
+  await remove(ref(db, `rooms/${currentRoomId}`));
+  // 其餘客戶端會透過 meta 監聽偵測到房間消失並自動回大廳
+});
+
+function handleRoomDeleted() {
+  cancelPresence(currentRoomId);
+  alert("房間已被刪除或已不存在");
+  localStorage.removeItem("bingo_last_room");
+  clearSubs();
+  currentRoomId = null;
+  showLobby();
+  listenRoomList();
+}
+
+/* ===== 在線狀態（presence） ===== */
+function setupPresence(roomId) {
+  const myOnlineRef = ref(db, `rooms/${roomId}/players/${myUid}/online`);
+  const connUnsub = onValue(ref(db, ".info/connected"), (snap) => {
+    if (snap.val() === true) {
+      onDisconnect(myOnlineRef).set(false);
+      set(myOnlineRef, true);
+    }
+  });
+  unsubs.push(connUnsub);
+}
+
+/* ===== 房主自動轉移 ===== */
+/* 房主轉移設有 5 秒寬限時間，避免房主只是重新整理網頁（短暫斷線重連）就被誤判離線而搶走房主 */
+let hostMigrationTimer = null;
+
+function maybeClaimHost() {
+  if (!currentRoomId || !roomMeta.hostId) return;
+  const hostPlayer = players[roomMeta.hostId];
+  const iAmOnline = players[myUid] && players[myUid].online === true;
+  // 房主離線，或房主的玩家資料已經完全不存在（例如主動離開房間），都視為需要轉移
+  const hostNeedsMigration = !hostPlayer || hostPlayer.online !== true;
+
+  if (!hostNeedsMigration) {
+    if (hostMigrationTimer) { clearTimeout(hostMigrationTimer); hostMigrationTimer = null; }
+  if (bingoPlayoffTimer) { clearTimeout(bingoPlayoffTimer); bingoPlayoffTimer = null; }
+    return;
+  }
+  if (!iAmOnline) return;
+  if (hostMigrationTimer) return; // 已經在等待寬限時間，不要重複排程
+
+  hostMigrationTimer = setTimeout(() => {
+    hostMigrationTimer = null;
+    // 5 秒後重新確認一次房主是否仍然離線（可能剛好重整完重新連回來了）
+    const hp = players[roomMeta.hostId];
+    const stillNeeds = !hp || hp.online !== true;
+    if (!stillNeeds) return;
+
+    const onlineList = Object.entries(players).filter(([, p]) => p.online === true);
+    if (!onlineList.length) return;
+    onlineList.sort((a, b) => (a[1].joinedAt || 0) - (b[1].joinedAt || 0));
+    const candidateUid = onlineList[0][0];
+    if (candidateUid === myUid && myUid !== roomMeta.hostId) {
+      const oldHost = roomMeta.hostId;
+      runTransaction(ref(db, `rooms/${currentRoomId}/meta/hostId`), (curr) => {
+        if (curr === oldHost) return myUid;
+        return; // 已被其他人搶先轉移，放棄
+      }).then(res => {
+        if (res.committed) pushLog(`${myName} 自動成為新房主（原房主已離開超過 5 秒）`);
+      });
+    }
+  }, 5000);
+}
+
+/* ===== 房間內訂閱 ===== */
+function clearSubs() {
+  unsubs.forEach(u => u && u());
+  unsubs = [];
+  if (hostMigrationTimer) { clearTimeout(hostMigrationTimer); hostMigrationTimer = null; }
+}
+
+/* 把所有「只屬於某一間房、某一局」的本機狀態清乾淨。
+   漏掉任何一個都會造成跨房污染 —— 例如用上一間房的號碼卡在新房間登記獲勝。 */
+function resetRoomLocalState() {
+  roomMeta = {}; players = {}; calledNumbers = {}; myBoard = [];
+  pwState = {}; pwGuesses = {}; lotState = {}; cardState = {};
+  scores = {};
+  myWinRegistered = false; prevBingoRound = 1;
+  bragState = { count: 0, times: 0, locked: false };
+  prizeEditorSig = null;
+  resetLotteryView();
+  resetScheduleWatch();   // 剛進房不該跳「賽程更新了」的提示
+}
+
+function subscribeRoom() {
+  clearSubs();
+  resetRoomLocalState();
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/meta`), (snap) => {
+    const val = snap.val();
+    if (val === null) {
+      if (hadValidMeta) handleRoomDeleted();
+      return;
+    }
+    hadValidMeta = true;
+    const prevState = roomMeta.gameState;
+    roomMeta = val;
+    isHost = roomMeta.hostId === myUid;
+    notifyScheduleChanges();
+
+    const gt = gameType();
+    roomLabelEl.textContent =
+      `房間：${roomMeta.name || ""}（${GAME_TYPES[gt].icon} ${GAME_TYPES[gt].label}` +
+      `　第 ${currentRoundNo()}/${totalRounds()} 局）　暱稱：${myName}`;
+
+    const state = roomMeta.gameState || "lobby";
+    if (state === "playing" && prevState && prevState !== "playing") {
+      showToast("🎉 遊戲開始！");
+    }
+    // 回到大廳、或賓果開了新一輪加賽，都要重新允許登記達標
+    if (state === "lobby" || (roomMeta.bingoRound || 1) !== prevBingoRound) myWinRegistered = false;
+    prevBingoRound = roomMeta.bingoRound || 1;
+
+    lockBtn.disabled = state === "preparing";
+    if (state === "playing") lockBtn.textContent = "取消鎖定";
+    else if (state === "finished") lockBtn.textContent = nextRoundLabel();
+    else lockBtn.textContent = "鎖定";
+    // 抽獎平常用自己的「打亂並開始」，但本局結束後仍需要這顆按鈕推進賽程
+    lockBtn.classList.toggle("hidden", !(isHost && (usesReadyFlow() || state === "finished")));
+    editScheduleBtn.classList.toggle("hidden", !(isHost && state === "lobby"));
+    renderSchedulePanel();
+    deleteRoomBtn.classList.toggle("hidden", !isHost);
+    transferHostBtn.classList.toggle("hidden", !isHost);
+    clearOrderBtn.disabled = !isHost || state !== "lobby";
+    randomOrderBtn.disabled = !isHost || state !== "lobby";
+    refreshCardBtn.disabled = state !== "lobby";
+
+    syncRuleInputs(state);
+    applyGameTypeUI();
+
+    renderPlayers();
+    renderPublicGrid();
+    renderMyCard();
+    renderTurnHint();
+    renderSpectateBanner();
+    renderWinnersPanel();
+    updateBingoCount();
+    renderPasswordZone();
+    renderLotteryZone();
+    renderCardZone();
+    renderScorePanel();
+    renderScoreModal();
+    maybeBingoPlayoff();
+    forceBingoWinner();
+    writeRoundAwards();
+  }));
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/players`), (snap) => {
+    players = snap.val() || {};
+    if (currentRoomId && !players[myUid]) {
+      // 我不在玩家名單裡了（被房主移除），取消斷線預約避免之後冒出幽靈玩家，並自動回大廳
+      const goneRoomId = currentRoomId;
+      cancelPresence(goneRoomId);
+      localStorage.removeItem("bingo_last_room");
+      clearSubs();
+      currentRoomId = null;
+      alert("你已被移出這個房間");
+      showLobby();
+      listenRoomList();
+      return;
+    }
+    renderPlayers();
+    renderPublicGrid();
+    renderMyCard();
+    renderTurnHint();
+    renderSpectateBanner();
+    renderReadyStatus();
+    renderPasswordZone();
+    renderLotteryZone();
+    renderCardZone();
+    renderScorePanel();
+    renderScoreModal();
+    // 杯子上限 = 參加人數，人數一變就要重算，否則欄位會卡在載入當下的人數
+    syncRuleInputs(roomMeta.gameState || "lobby");
+    writeRoundAwards();
+    reviveLotteryIfStuck();
+    maybeClaimHost();
+    const mine = players[myUid];
+    // 一定要無條件同步：開新局時資料庫的 brag 被清成 null，
+    // 若只在「有值」時覆寫，本機會沿用上一局的 locked 狀態把炫耀鈕鎖死
+    bragState = (mine && mine.brag) ? mine.brag : { count: 0, times: 0, locked: false };
+    updateBragButton();
+  }));
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/calledNumbers`), (snap) => {
+    calledNumbers = snap.val() || {};
+    renderPublicGrid();
+    renderMyCard();
+    updateBingoCount();
+  }));
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/pwState`), (snap) => {
+    pwState = snap.val() || {};
+    renderPasswordZone();
+    writeRoundAwards();
+  }));
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/pwGuesses`), (snap) => {
+    pwGuesses = snap.val() || {};
+    renderPasswordGuesses();
+  }));
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/scores`), (snap) => {
+    scores = snap.val() || {};
+    renderScorePanel();
+    renderScoreModal();
+  }));
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/cardState`), (snap) => {
+    cardState = snap.val() || {};
+    renderCardZone();
+    renderSpectateBanner();
+    writeRoundAwards();
+  }));
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/lotteryState`), (snap) => {
+    lotState = snap.val() || {};
+    if (lotFirstSnapshot) {
+      // 我加入前就已經被選走的杯子視為看過，避免一進來就滿場動畫
+      lotClaimedSeen = new Set(Object.keys(lotState.picks || {}));
+      lotFirstSnapshot = false;
+    }
+    renderLotteryZone();
+    writeRoundAwards();
+    reviveLotteryIfStuck();
+  }));
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/boards/${myUid}/numbers`), (snap) => {
+    const arr = snap.val();
+    myBoard = Array.isArray(arr) && arr.length === 25 ? arr : randomBoard();
+    renderMyCard();
+    updateBingoCount();
+  }));
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/logs`), (snap) => {
+    const val = snap.val() || {};
+    const list = Object.values(val).sort((a, b) => (a.timestamp||0) - (b.timestamp||0)).slice(-300);
+    logBoxEl.innerHTML = "";
+    list.forEach(l => {
+      const t = new Date(l.timestamp || Date.now());
+      const hh = String(t.getHours()).padStart(2,"0");
+      const mm = String(t.getMinutes()).padStart(2,"0");
+      const ss = String(t.getSeconds()).padStart(2,"0");
+
+      const row = document.createElement("div");
+      row.className = "log-line";
+      const dot = document.createElement("span");
+      dot.className = "log-dot";
+      dot.style.background = colorForUid(l.uid);
+      const textEl = document.createElement("span");
+      textEl.textContent = `[${hh}:${mm}:${ss}] ${l.text}`;
+      row.appendChild(dot);
+      row.appendChild(textEl);
+      logBoxEl.appendChild(row);
+    });
+    logBoxEl.scrollTop = logBoxEl.scrollHeight;
+  }));
+
+  unsubs.push(onValue(ref(db, `rooms/${currentRoomId}/prepare`), (snap) => {
+    const active = !!(snap.val() && snap.val().active);
+    if (active) {
+      readyModal.classList.remove("hidden");
+      readyBtn.classList.toggle("hidden", isHost);
+      hostAutoNoteEl.classList.toggle("hidden", !isHost);
+      renderReadyStatus();
+    }
+    else { readyModal.classList.add("hidden"); }
+  }));
+}
+
+/* ===== 玩家列表 / 排序 ===== */
+function renderPlayers() {
+  playerListEl.innerHTML = "";
+  const entries = Object.entries(players).sort((a, b) => {
+    const oa = a[1].order ?? 9999, ob = b[1].order ?? 9999;
+    if (oa !== ob) return oa - ob;
+    return (a[1].name || "").localeCompare(b[1].name || "");
+  });
+  const state = roomMeta.gameState || "lobby";
+
+  entries.forEach(([uid, p]) => {
+    const row = document.createElement("div");
+    const out = !isActivePlayer(uid);
+    row.className = "player-row" + (uid === myUid ? " me" : "")
+      + (p.online !== true ? " offline" : "") + (out ? " offline" : "");
+    if (isHost && state === "lobby") row.classList.add("clickable");
+
+    const badge = document.createElement("span");
+    badge.className = "order-badge";
+    badge.textContent = p.order ? String(p.order) : "";
+
+    const icon = document.createElement("span");
+    icon.className = "player-avatar";
+    icon.style.background = colorForUid(uid);
+    icon.textContent = uid === roomMeta.hostId ? "👑" : "👤";
+
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = (p.name || "(未命名)")
+      + (p.online !== true ? "（離線）" : "")
+      + (out ? "（本局出局）" : "");
+
+    row.appendChild(badge); row.appendChild(icon); row.appendChild(name);
+
+    // 房主可以隨時移除任何其他玩家（包含清掉離線的殘留幽靈玩家）
+    if (isHost && uid !== myUid) {
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "transfer-btn";
+      removeBtn.title = `移除 ${p.name || "此玩家"}`;
+      removeBtn.textContent = "🗑️";
+      removeBtn.addEventListener("click", (e) => { e.stopPropagation(); removePlayer(uid); });
+      row.appendChild(removeBtn);
+    }
+
+    if (isHost && state === "lobby") row.addEventListener("click", () => togglePlayerOrder(uid));
+    playerListEl.appendChild(row);
+  });
+}
+function togglePlayerOrder(uid) {
+  const p = players[uid];
+  if (!p) return;
+  const newOrder = p.order ? null : nextAvailableOrder();
+  update(ref(db, `rooms/${currentRoomId}/players/${uid}`), { order: newOrder });
+}
+async function transferHost(targetUid) {
+  if (!isHost || !currentRoomId || targetUid === myUid) return;
+  const target = players[targetUid];
+  if (!target) return;
+  if (hostMigrationTimer) { clearTimeout(hostMigrationTimer); hostMigrationTimer = null; }
+  await update(ref(db, `rooms/${currentRoomId}/meta`), { hostId: targetUid });
+  pushLog(`${myName} 將房主移交給 ${target.name || "此玩家"}`);
+}
+
+/* ===== 移交房主：獨立按鈕 + 選人視窗 ===== */
+let transferSelectedUid = null;
+function renderTransferPlayerList() {
+  transferPlayerListEl.innerHTML = "";
+  const candidates = Object.entries(players).filter(([uid, p]) => uid !== myUid && p.online === true);
+  if (!candidates.length) {
+    const none = document.createElement("div");
+    none.className = "muted";
+    none.textContent = "目前沒有其他在線玩家可以移交";
+    transferPlayerListEl.appendChild(none);
+    transferConfirmBtn.disabled = true;
+    return;
+  }
+  transferConfirmBtn.disabled = true;
+  candidates.forEach(([uid, p]) => {
+    const row = document.createElement("div");
+    row.className = "transfer-row";
+    const avatar = document.createElement("span");
+    avatar.className = "player-avatar";
+    avatar.style.background = colorForUid(uid);
+    avatar.textContent = uid === roomMeta.hostId ? "👑" : "👤";
+    const name = document.createElement("span");
+    name.textContent = p.name || "(未命名)";
+    row.appendChild(avatar); row.appendChild(name);
+    row.addEventListener("click", () => {
+      transferSelectedUid = uid;
+      transferPlayerListEl.querySelectorAll(".transfer-row").forEach(r => r.classList.remove("selected"));
+      row.classList.add("selected");
+      transferConfirmBtn.disabled = false;
+    });
+    transferPlayerListEl.appendChild(row);
+  });
+}
+transferHostBtn.addEventListener("click", () => {
+  if (!isHost || !currentRoomId) return;
+  transferSelectedUid = null;
+  renderTransferPlayerList();
+  transferModal.classList.remove("hidden");
+});
+transferCancelBtn.addEventListener("click", () => transferModal.classList.add("hidden"));
+transferModal.addEventListener("click", (e) => { if (e.target === transferModal) transferModal.classList.add("hidden"); });
+transferConfirmBtn.addEventListener("click", async () => {
+  if (!transferSelectedUid) return;
+  await transferHost(transferSelectedUid);
+  transferModal.classList.add("hidden");
+});
+async function removePlayer(targetUid) {
+  if (!isHost || !currentRoomId || targetUid === myUid) return;
+  const target = players[targetUid];
+  if (!target) return;
+  if (!confirm(`確定要把「${target.name || "此玩家"}」移出房間嗎？（會清掉他的資料，若他還在線上，重新整理後會被視為新玩家重新加入）`)) return;
+  await remove(ref(db, `rooms/${currentRoomId}/players/${targetUid}`));
+  await remove(ref(db, `rooms/${currentRoomId}/boards/${targetUid}`));
+  pushLog(`${myName} 將 ${target.name || "此玩家"} 移出房間`);
+}
+clearOrderBtn.addEventListener("click", () => {
+  if (!isHost || !currentRoomId) return;
+  const updates = {};
+  Object.keys(players).forEach(uid => { updates[`rooms/${currentRoomId}/players/${uid}/order`] = null; });
+  update(ref(db), updates);
+});
+
+/* 隨機排序：把 1..N 洗牌後發給所有人，抽獎輪流掀杯時特別實用 */
+randomOrderBtn.addEventListener("click", () => {
+  if (!isHost || !currentRoomId || (roomMeta.gameState || "lobby") !== "lobby") return;
+  const uids = Object.keys(players);
+  if (!uids.length) { alert("目前沒有玩家"); return; }
+  const orders = Array.from({ length: uids.length }, (_, i) => i + 1);
+  for (let i = orders.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [orders[i], orders[j]] = [orders[j], orders[i]];
+  }
+  const updates = {};
+  uids.forEach((uid, i) => { updates[`rooms/${currentRoomId}/players/${uid}/order`] = orders[i]; });
+  update(ref(db), updates);
+  pushLog(`${myName} 重新隨機排了玩家順位 🎲`);
+});
+
+/* ===== 刷新卡片 ===== */
+refreshCardBtn.addEventListener("click", () => {
+  if (!currentRoomId || (roomMeta.gameState || "lobby") !== "lobby") return;
+  set(ref(db, `rooms/${currentRoomId}/boards/${myUid}/numbers`), randomBoard());
+  pushLog(`${myName} 刷新了自己的號碼`);
+});
+
+/* ===== 遊戲類型切換：左右欄與中間遊戲區一次到位 ===== */
+function applyGameTypeUI() {
+  const gt = gameType();
+  bingoZoneEl.classList.toggle("hidden", gt !== "bingo");
+  passwordZoneEl.classList.toggle("hidden", gt !== "password");
+  lotteryZoneEl.classList.toggle("hidden", gt !== "lottery");
+  cardZoneEl.classList.toggle("hidden", !isCardGame());
+  bingoRulesEl.classList.toggle("hidden", gt !== "bingo");
+  passwordRulesEl.classList.toggle("hidden", gt !== "password");
+  lotteryRulesEl.classList.toggle("hidden", gt !== "lottery");
+  cardCommonRulesEl.classList.toggle("hidden", !isCardGame());
+  blackjackRulesEl.classList.toggle("hidden", gt !== "blackjack");
+  niuniuRulesEl.classList.toggle("hidden", gt !== "niuniu");
+  compareRulesEl.classList.toggle("hidden", gt !== "compare");
+
+  // 註：抽獎不跑「鎖定→準備」流程（改由抽獎區的「打亂並開始」啟動），
+  // 但順位排序要留著（可設定成依順位輪流掀杯），lockBtn 的顯示則由 meta 監聽統一決定
+}
+
+/* 把房規欄位同步成資料庫的值（避免蓋掉使用者正在輸入的內容），並依權限上鎖 */
+function syncRuleInputs(state) {
+  const locked = !isHost || state !== "lobby";
+  const setVal = (el, v) => { if (document.activeElement !== el) el.value = v; };
+
+  setVal(bingoThresholdInput, roomMeta.bingoThreshold || 1);
+  setVal(winModeSelect, roomMeta.winMode || "race");
+  setVal(pwMinInput, roomMeta.pwMin ?? 1);
+  setVal(pwMaxInput, roomMeta.pwMax ?? 100);
+  setVal(pwHitRoleSelect, roomMeta.pwHitRole || "lose");
+  // 積分每局只發給唯一勝者，受罰模式沒有勝者所以不計分，這裡直接講清楚
+  if ((roomMeta.pwHitRole || "lose") === "win") {
+    pwScoreNoteEl.textContent = `猜中的人拿走這一局的 ${stagePoints()} 分。`;
+    pwScoreNoteEl.style.color = "";
+  } else {
+    pwScoreNoteEl.textContent = "⚠️ 受罰模式沒有唯一勝者，這一局不會發積分。要計分請改成「獲勝・密碼專家」。";
+    pwScoreNoteEl.style.color = "var(--coral-dark)";
+  }
+  lotCupCountInput.max = String(maxCupCount());
+  setVal(lotCupCountInput, Math.min(roomMeta.lotCupCount || 6, maxCupCount()));
+  renderPrizeEditor();
+  setVal(lotBlankInput, roomMeta.lotBlank || "銘謝惠顧");
+  setVal(lotPickModeSelect, roomMeta.lotPickMode || "turn");
+  setVal(lotPickLimitInput, roomMeta.lotPickLimit ?? 1);
+  setVal(cardDeckInput, roomMeta.cardDecks ?? 1);
+  setVal(bjInitialInput, roomMeta.bjInitial ?? 2);
+  setVal(cmpCardsInput, roomMeta.cmpCards ?? 1);
+
+  [bingoThresholdInput, winModeSelect,
+   pwMinInput, pwMaxInput, pwHitRoleSelect,
+   lotCupCountInput, lotBlankInput, lotPickModeSelect, lotPickLimitInput,
+   cardDeckInput, bjInitialInput, cmpCardsInput]
+    .forEach(el => el.classList.toggle("locked", locked));
+}
+
+/* 房規欄位的共用寫入：只有房主、且在大廳狀態才能改 */
+function canEditRules() {
+  return isHost && currentRoomId && (roomMeta.gameState || "lobby") === "lobby";
+}
+function saveRule(patch, logText) {
+  if (!canEditRules()) return;
+  update(ref(db, `rooms/${currentRoomId}/meta`), patch);
+  if (logText) pushLog(logText);
+}
+
+/* ===== 房內賽程面板：所有人都看得到現在玩什麼、排了哪些、進行到第幾局 ===== */
+function renderSchedulePanel() {
+  const sch = scheduleList();
+  const idx = stageIndex();
+  const round = roundInStage();
+  schedPanelEl.innerHTML = "";
+
+  const head = document.createElement("div");
+  head.className = "head";
+  const title = document.createElement("b");
+  title.textContent = sch.length > 1 ? "🗓️ 賽程" : "🎮 遊戲";
+  const prog = document.createElement("span");
+  prog.className = "prog";
+  prog.textContent = `第 ${currentRoundNo()} / ${totalRounds()} 局`;
+  head.appendChild(title);
+  head.appendChild(prog);
+  schedPanelEl.appendChild(head);
+
+  sch.forEach((s, i) => {
+    const row = document.createElement("div");
+    row.className = "sched-stage" + (i === idx ? " now" : i < idx ? " done" : "");
+    const n = document.createElement("span");
+    n.className = "n";
+    n.textContent = (i + 1) + ".";
+    const nm = document.createElement("span");
+    nm.className = "nm";
+    nm.textContent = `${GAME_TYPES[s.type].icon} ${GAME_TYPES[s.type].label}`;
+    const x = document.createElement("span");
+    x.className = "x";
+    const pt = s.type === "lottery" ? "獎項帶分" : `${s.points ?? 1}分`;
+    x.textContent = (i === idx ? `${round}/${s.rounds}局` : `${s.rounds}局`) + `·${pt}`;
+    row.appendChild(n); row.appendChild(nm); row.appendChild(x);
+    schedPanelEl.appendChild(row);
+  });
+}
+
+/* ===== 積分榜：左欄常駐前三名，點開看完整榜與每人的各遊戲明細 ===== */
+function renderScorePanel() {
+  if (!currentRoomId) return;
+  const rank = scoreRanking().filter(r => r.total !== 0 || players[r.uid]);
+  scorePanelEl.innerHTML = "";
+
+  const head = document.createElement("div");
+  head.className = "head";
+  const title = document.createElement("b");
+  title.textContent = "🏅 積分榜";
+  const more = document.createElement("span");
+  more.className = "more";
+  more.textContent = "點開看明細 ›";
+  head.appendChild(title); head.appendChild(more);
+  scorePanelEl.appendChild(head);
+
+  if (!rank.length || rank.every(r => r.total === 0)) {
+    const none = document.createElement("div");
+    none.className = "score-empty";
+    none.textContent = "還沒有人得分";
+    scorePanelEl.appendChild(none);
+    return;
+  }
+  const MEDALS = ["🥇", "🥈", "🥉"];
+  rank.slice(0, 3).forEach((r, i) => {
+    const row = document.createElement("div");
+    row.className = "score-row" + (r.uid === myUid ? " me" : "");
+    const m = document.createElement("span");
+    m.className = "medal"; m.textContent = MEDALS[i] || (i + 1);
+    const nm = document.createElement("span");
+    nm.className = "nm"; nm.textContent = r.name;
+    const pt = document.createElement("span");
+    pt.className = "pt"; pt.textContent = r.total;
+    row.appendChild(m); row.appendChild(nm); row.appendChild(pt);
+    scorePanelEl.appendChild(row);
+  });
+  if (rank.length > 3) {
+    const rest = document.createElement("div");
+    rest.className = "score-empty";
+    rest.textContent = `還有 ${rank.length - 3} 人…`;
+    scorePanelEl.appendChild(rest);
+  }
+}
+
+let scoreOpenUid = null;   // 目前展開明細的玩家
+function renderScoreModal() {
+  if (scoreModal.classList.contains("hidden")) return;
+  const rank = scoreRanking();
+  const played = Object.keys(scores || {}).length;
+
+  scoreSumEl.innerHTML =
+    `<span>賽程進度 第 ${currentRoundNo()} / ${totalRounds()} 局</span>` +
+    `<span>已結算 ${played} 局</span>`;
+  scoreResetBtn.classList.toggle("hidden", !isHost);
+
+  scoreListEl.innerHTML = "";
+  if (!rank.length) {
+    const none = document.createElement("div");
+    none.className = "score-empty";
+    none.textContent = "還沒有人得分";
+    scoreListEl.appendChild(none);
+    return;
+  }
+
+  rank.forEach((r, i) => {
+    const item = document.createElement("div");
+    item.className = "score-item" + (r.uid === myUid ? " me" : "") + (scoreOpenUid === r.uid ? " open" : "");
+
+    const head = document.createElement("div");
+    head.className = "score-head";
+    const rk = document.createElement("span");
+    rk.className = "rk"; rk.textContent = i + 1;
+    const nm = document.createElement("span");
+    nm.className = "nm";
+    nm.textContent = (["🥇", "🥈", "🥉"][i] || "") + r.name + (r.uid === myUid ? "（你）" : "");
+    const pt = document.createElement("span");
+    pt.className = "pt"; pt.textContent = r.total + " 分";
+    const caret = document.createElement("span");
+    caret.className = "caret"; caret.textContent = "▶";
+    head.appendChild(rk); head.appendChild(nm); head.appendChild(pt); head.appendChild(caret);
+    head.addEventListener("click", () => {
+      scoreOpenUid = scoreOpenUid === r.uid ? null : r.uid;
+      renderScoreModal();
+    });
+    item.appendChild(head);
+
+    if (scoreOpenUid === r.uid) {
+      const detail = document.createElement("div");
+      detail.className = "score-detail";
+      const rows = scoreBreakdown(r.uid).filter(a => (a.pts || 0) !== 0);
+      if (!rows.length) {
+        const none = document.createElement("div");
+        none.className = "none";
+        none.textContent = "這場比賽還沒得過分";
+        detail.appendChild(none);
+      } else {
+        // 依遊戲別彙總，讓人一眼看出強項在哪
+        const byGame = {};
+        rows.forEach(a => { byGame[a.game] = (byGame[a.game] || 0) + (a.pts || 0); });
+        const table = document.createElement("table");
+        Object.entries(byGame).forEach(([g, p]) => {
+          const tr = document.createElement("tr");
+          const td1 = document.createElement("td");
+          td1.className = "g";
+          td1.textContent = `${(GAME_TYPES[g] || {}).icon || ""} ${(GAME_TYPES[g] || {}).label || g}`;
+          const td2 = document.createElement("td");
+          td2.className = "r";
+          td2.textContent = rows.filter(a => a.game === g).length + " 局";
+          const td3 = document.createElement("td");
+          td3.className = "p";
+          td3.textContent = (p > 0 ? "+" : "") + p;
+          tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+          table.appendChild(tr);
+        });
+        detail.appendChild(table);
+      }
+      item.appendChild(detail);
+    }
+    scoreListEl.appendChild(item);
+  });
+}
+
+function openScoreModal() {
+  if (!currentRoomId) return;
+  scoreModal.classList.remove("hidden");
+  renderScoreModal();
+}
+scorePanelEl.addEventListener("click", openScoreModal);
+scoreCloseBtn.addEventListener("click", () => scoreModal.classList.add("hidden"));
+scoreModal.addEventListener("click", (e) => { if (e.target === scoreModal) scoreModal.classList.add("hidden"); });
+scoreResetBtn.addEventListener("click", async () => {
+  if (!isHost || !currentRoomId) return;
+  if (!confirm("確定要把所有人的積分歸零嗎？（賽程進度不受影響）")) return;
+  // 只刪積分、保留結算標記 —— 標記還在，就沒有客戶端會把分數重新寫回來
+  await remove(ref(db, `rooms/${currentRoomId}/scores`));
+  pushLog(`🏅 ${myName} 將積分歸零`);
+});
+
+/* 賽程有變動（房主改了設定、或推進到下一局／下一個遊戲）就跳提示通知所有人 */
+let prevSchedJson = null;
+let prevStageKey = null;
+function resetScheduleWatch() { prevSchedJson = null; prevStageKey = null; }
+function notifyScheduleChanges() {
+  const schJson = JSON.stringify(scheduleList());
+  const schChanged = prevSchedJson !== null && schJson !== prevSchedJson;
+  prevSchedJson = schJson;
+
+  const key = stageIndex() + "|" + roundInStage();
+  const stageChanged = prevStageKey !== null && key !== prevStageKey;
+  prevStageKey = key;
+
+  // 房主改賽程時通常也會把進度重設回第 1 局，兩個提示只留比較重要的那個
+  if (schChanged) { showToast("⚙️ 房主更新了賽程"); return; }
+  if (stageChanged) {
+    const st = currentStage();
+    showToast(`▶️ 第 ${currentRoundNo()}/${totalRounds()} 局 · ${GAME_TYPES[st.type].icon} ${GAME_TYPES[st.type].label}`);
+  }
+}
+
+/* 本局結束後，那顆按鈕該說什麼 */
+function nextRoundLabel() {
+  const sch = scheduleList();
+  const pos = nextSchedulePosition();
+  if (pos.wrapped) return sch.length > 1 || sch[0].rounds > 1 ? "🔁 賽程跑完，重頭再來" : "再玩一局";
+  if (pos.nextGame) {
+    const g = GAME_TYPES[sch[pos.index].type];
+    return `▶️ 下一個：${g.icon}${g.label}`;
+  }
+  return `▶️ 下一局（${pos.round}/${sch[pos.index].rounds}）`;
+}
+
+/* ===== 房內編輯賽程 ===== */
+editScheduleBtn.addEventListener("click", () => {
+  if (!isHost || !currentRoomId) return;
+  const locked = lockedStageCount();
+  roomSchedule.load(scheduleList(), locked);
+  scheduleModalNoteEl.textContent = locked > 0
+    ? "比賽進行中：已結束與進行中的階段不能更動，只能調整後面還沒玩的部分（積分與進度不受影響）。"
+    : "還沒開打，整份賽程都可以自由調整。";
+  scheduleModal.classList.remove("hidden");
+});
+scheduleCancelBtn.addEventListener("click", () => scheduleModal.classList.add("hidden"));
+scheduleModal.addEventListener("click", (e) => { if (e.target === scheduleModal) scheduleModal.classList.add("hidden"); });
+scheduleSaveBtn.addEventListener("click", async () => {
+  if (!canEditRules()) { alert("只有房主能在「尚未開始」的狀態調整賽程"); return; }
+  const sch = roomSchedule.get();
+  if (!sch.length) return;
+
+  const locked = roomSchedule.lockedCount();
+
+  // 不論是否已開打，都把上一個遊戲殘留的局內狀態清乾淨
+  const updates = {
+    [`rooms/${currentRoomId}/meta/schedule`]: sch,
+    [`rooms/${currentRoomId}/meta/winners`]: null,
+    [`rooms/${currentRoomId}/meta/finalists`]: null,
+    [`rooms/${currentRoomId}/meta/bingoRound`]: null,
+    [`rooms/${currentRoomId}/calledNumbers`]: null,
+    [`rooms/${currentRoomId}/pwState`]: null,
+    [`rooms/${currentRoomId}/pwGuesses`]: null,
+    [`rooms/${currentRoomId}/lotteryState`]: null,
+    [`rooms/${currentRoomId}/cardState`]: null
+  };
+
+  if (locked > 0) {
+    // 比賽已經在跑：已結束與進行中的階段原封不動，只換掉後面還沒玩的部分。
+    // 進度（scheduleIndex/roundInStage）與積分都保留。
+    updates[`rooms/${currentRoomId}/meta/gameType`] = sch[Math.min(stageIndex(), sch.length - 1)].type;
+    await update(ref(db), updates);
+    const tail = sch.slice(locked);
+    pushLog(`⚙️ ${myName} 調整了後續賽程：${tail.length ? scheduleSummary(tail) : "（後面沒有其他階段了）"}`);
+  } else {
+    // 還沒開打：整份重設，回到第 1 局，積分與結算標記一併清空
+    updates[`rooms/${currentRoomId}/meta/scheduleIndex`] = 0;
+    updates[`rooms/${currentRoomId}/meta/roundInStage`] = 1;
+    updates[`rooms/${currentRoomId}/meta/turnIndex`] = 0;
+    updates[`rooms/${currentRoomId}/meta/turnStart`] = 0;
+    updates[`rooms/${currentRoomId}/meta/gameType`] = sch[0].type;
+    updates[`rooms/${currentRoomId}/scores`] = null;
+    updates[`rooms/${currentRoomId}/meta/scoredRounds`] = null;
+    await update(ref(db), updates);
+    pushLog(`⚙️ ${myName} 更新了賽程：${scheduleSummary(sch)}（共 ${sch.reduce((n, s) => n + s.rounds, 0)} 局）`);
+  }
+  scheduleModal.classList.add("hidden");
+});
+
+/* ===== 終極密碼房規 ===== */
+pwMinInput.addEventListener("change", () => {
+  let lo = parseInt(pwMinInput.value, 10);
+  if (!Number.isFinite(lo)) lo = 1;
+  let hi = roomMeta.pwMax ?? 100;
+  if (hi - lo < 2) hi = lo + 2;   // 至少留 3 個候選數字，不然開局就沒得猜
+  pwMinInput.value = lo;
+  saveRule({ pwMin: lo, pwMax: hi }, `${myName} 將猜數字範圍設為 ${lo} ～ ${hi}`);
+});
+pwMaxInput.addEventListener("change", () => {
+  const lo = roomMeta.pwMin ?? 1;
+  let hi = parseInt(pwMaxInput.value, 10);
+  if (!Number.isFinite(hi) || hi - lo < 2) hi = lo + 2;
+  pwMaxInput.value = hi;
+  saveRule({ pwMin: lo, pwMax: hi }, `${myName} 將猜數字範圍設為 ${lo} ～ ${hi}`);
+});
+pwHitRoleSelect.addEventListener("change", () => {
+  const v = pwHitRoleSelect.value === "win" ? "win" : "lose";
+  saveRule({ pwHitRole: v }, `${myName} 將猜中的人設定為「${v === "win" ? "獲勝" : "受罰"}」`);
+});
+
+/* ===== 撲克牌遊戲房規 ===== */
+cardDeckInput.addEventListener("change", () => {
+  let v = parseInt(cardDeckInput.value, 10);
+  if (!Number.isFinite(v) || v < 1) v = 1;
+  if (v > 4) v = 4;
+  cardDeckInput.value = v;
+  saveRule({ cardDecks: v }, `${myName} 將牌組數設為 ${v} 副（共 ${v * 52} 張）`);
+});
+bjInitialInput.addEventListener("change", () => {
+  let v = parseInt(bjInitialInput.value, 10);
+  if (!Number.isFinite(v) || v < 1) v = 1;
+  if (v > 3) v = 3;
+  bjInitialInput.value = v;
+  saveRule({ bjInitial: v }, `${myName} 將 21 點起手牌數設為 ${v} 張`);
+});
+cmpCardsInput.addEventListener("change", () => {
+  let v = parseInt(cmpCardsInput.value, 10);
+  if (!Number.isFinite(v) || v < 1) v = 1;
+  if (v > 5) v = 5;
+  cmpCardsInput.value = v;
+  saveRule({ cmpCards: v }, `${myName} 將比大小的每人張數設為 ${v} 張`);
+});
+
+/* ===== 獎項編輯器（房主專用，大廳狀態才能改） ===== */
+function saveLotPrizeRows(rows) {
+  if (!canEditRules()) return;
+  update(ref(db, `rooms/${currentRoomId}/meta`), { lotPrizeRows: rows, lotPrizes: null });
+}
+let prizeEditorSig = null;
+function renderPrizeEditor() {
+  if (!currentRoomId) return;
+  const rows = lotPrizeRows();
+  const editable = canEditRules();
+
+  // 舊版是「編輯器內有焦點就不重畫」，但點刪除鈕本身就會取得焦點 ——
+  // 於是刪掉一列後畫面不更新，各列事件閉包的索引全部錯開一位，
+  // 造成改到別列、刪錯列、甚至 next[i] 是 undefined 而丟出例外。
+  // 改成比對內容簽章：內容沒變才跳過（打字時不會變，不影響輸入）。
+  const sig = JSON.stringify([rows, editable, maxCupCount(), roomMeta.lotCupCount, roomMeta.lotBlank]);
+  if (sig === prizeEditorSig) return;
+  prizeEditorSig = sig;
+  lotPrizeEditor.innerHTML = "";
+  lotAddPrizeBtn.disabled = !editable;
+
+  if (!rows.length) {
+    const none = document.createElement("div");
+    none.className = "prize-empty";
+    none.textContent = editable ? "還沒有獎項，按下面的「＋ 新增獎項」" : "房主還沒設定獎項";
+    lotPrizeEditor.appendChild(none);
+  }
+
+  rows.forEach((row, i) => {
+    const el = document.createElement("div");
+    el.className = "prize-row";
+
+    const name = document.createElement("input");
+    name.type = "text"; name.maxLength = 20; name.value = row.name;
+    name.placeholder = "獎項名稱";
+    name.disabled = !editable;
+    name.addEventListener("change", () => {
+      const next = lotPrizeRows();
+      next[i].name = name.value.trim() || "獎項";
+      saveLotPrizeRows(next);
+    });
+    el.appendChild(name);
+
+    const line2 = document.createElement("div");
+    line2.className = "line2";
+
+    const pts = document.createElement("input");
+    pts.type = "number"; pts.min = "-999"; pts.max = "999"; pts.value = row.points;
+    pts.title = "抽到這個獎可以拿幾分";
+    pts.disabled = !editable;
+    pts.addEventListener("change", () => {
+      let v = parseInt(pts.value, 10);
+      if (!Number.isFinite(v)) v = 0;
+      v = Math.min(999, Math.max(-999, v));
+      const next = lotPrizeRows(); next[i].points = v; saveLotPrizeRows(next);
+    });
+    const u1 = document.createElement("span");
+    u1.className = "unit"; u1.textContent = "分";
+
+    const x = document.createElement("span");
+    x.className = "unit"; x.textContent = "×";
+
+    const qty = document.createElement("input");
+    qty.type = "number"; qty.min = "1"; qty.max = "40"; qty.value = row.qty;
+    qty.title = "這個獎有幾個（會佔幾個杯子）";
+    qty.disabled = !editable;
+    qty.addEventListener("change", () => {
+      let v = parseInt(qty.value, 10);
+      if (!Number.isFinite(v) || v < 1) v = 1;
+      v = Math.min(40, v);
+      const next = lotPrizeRows(); next[i].qty = v; saveLotPrizeRows(next);
+    });
+    const u2 = document.createElement("span");
+    u2.className = "unit"; u2.textContent = "個";
+
+    line2.appendChild(pts); line2.appendChild(u1);
+    line2.appendChild(x);
+    line2.appendChild(qty); line2.appendChild(u2);
+
+    if (editable) {
+      const del = document.createElement("button");
+      del.type = "button"; del.className = "mini"; del.textContent = "🗑";
+      del.title = "刪除這個獎項";
+      del.addEventListener("click", () => {
+        const next = lotPrizeRows(); next.splice(i, 1); saveLotPrizeRows(next);
+      });
+      line2.appendChild(del);
+    }
+    el.appendChild(line2);
+    lotPrizeEditor.appendChild(el);
+  });
+
+  // 獎項數 vs 杯子數 vs 人數的關係，直接寫清楚
+  const totalPrizes = rows.reduce((n, r) => n + r.qty, 0);
+  const totalPts = rows.reduce((n, r) => n + r.points * r.qty, 0);
+  const cups = Math.min(roomMeta.lotCupCount || 6, maxCupCount());
+  const cap = maxCupCount();
+  let note = `共 ${totalPrizes} 個獎、總積分 ${totalPts}　·　杯子 ${cups} 個（上限 = 參加人數 ${cap}）`;
+  if (totalPrizes > cap) note += `　⚠️ 獎項比參加人數還多，請減到 ${cap} 個以內才能開始`;
+  else if (totalPrizes > cups) note += `　開始時會自動把杯子加到 ${totalPrizes} 個`;
+  else if (totalPrizes < cups) note += `　剩下 ${cups - totalPrizes} 杯是「${roomMeta.lotBlank || "銘謝惠顧"}」`;
+  lotPrizeNoteEl.textContent = note;
+}
+lotAddPrizeBtn.addEventListener("click", () => {
+  if (!canEditRules()) { alert("只有房主能在「尚未開始」的狀態調整獎項"); return; }
+  const rows = lotPrizeRows();
+  if (rows.reduce((n, r) => n + r.qty, 0) >= 40) { alert("獎項總數最多 40 個"); return; }
+  rows.push({ name: "新獎項", points: 1, qty: 1 });
+  saveLotPrizeRows(rows);
+});
+
+/* ===== 抽獎房規 ===== */
+lotCupCountInput.addEventListener("change", () => {
+  let v = parseInt(lotCupCountInput.value, 10);
+  const cap = maxCupCount();
+  if (!Number.isFinite(v) || v < 1) v = 1;
+  if (v > cap) { v = cap; alert(`杯子數量最多等於參加人數（目前 ${cap} 人）`); }
+  lotCupCountInput.value = v;
+  saveRule({ lotCupCount: v }, `${myName} 將杯子數量設為 ${v} 個`);
+});
+lotBlankInput.addEventListener("change", () => {
+  saveRule({ lotBlank: lotBlankInput.value.trim() || "銘謝惠顧" });
+});
+lotPickModeSelect.addEventListener("change", () => {
+  const v = lotPickModeSelect.value === "free" ? "free" : "turn";
+  saveRule({ lotPickMode: v }, `${myName} 將掀杯方式設為「${v === "free" ? "自由搶" : "依順位輪流"}」`);
+});
+lotPickLimitInput.addEventListener("change", () => {
+  let v = parseInt(lotPickLimitInput.value, 10);
+  if (!Number.isFinite(v) || v < 0) v = 0;
+  if (v > 40) v = 40;
+  lotPickLimitInput.value = v;
+  saveRule({ lotPickLimit: v }, `${myName} 將每人可掀杯數設為 ${v === 0 ? "不限" : v + " 個"}`);
+});
+
+/* ===== 房規設定：幾條算 BINGO / 同時 BINGO 模式（僅房主，僅大廳狀態可改） ===== */
+bingoThresholdInput.addEventListener("change", () => {
+  if (!isHost || !currentRoomId || (roomMeta.gameState || "lobby") !== "lobby") return;
+  let v = parseInt(bingoThresholdInput.value, 10);
+  if (!v || v < 1) v = 1;
+  if (v > 12) v = 12;
+  bingoThresholdInput.value = v;
+  update(ref(db, `rooms/${currentRoomId}/meta`), { bingoThreshold: v });
+  pushLog(`${myName} 將 BINGO 條數設定為 ${v} 條`);
+});
+winModeSelect.addEventListener("change", () => {
+  if (!isHost || !currentRoomId || (roomMeta.gameState || "lobby") !== "lobby") return;
+  const v = winModeSelect.value;
+  update(ref(db, `rooms/${currentRoomId}/meta`), { winMode: v });
+  pushLog(`${myName} 將同時 BINGO 模式設定為「${v === "auto" ? "系統自動判定" : "先搶先贏"}」`);
+});
+
+/* ===== 锁定 / 准备流程 ===== */
+/* 開新局共用重置：清空本局狀態、把旁觀者自動排進順位、並幫所有人刷新一次號碼卡。
+   advance = true 代表「這一局打完了，往賽程的下一局推進」；
+   中途取消鎖定／抽獎重新設定則傳 false，留在原地重來。 */
+async function resetRoomForNewRound(advance, keepScores) {
+  const pos = advance ? nextSchedulePosition() : null;
+  const nextType = pos ? scheduleList()[pos.index].type : gameType();
+
+  // 每局把「先手」往後輪一位。若每局都從順位 1 開始，同一個人會永遠先動作 ——
+  // 這在 21 點（後手看得到前面的點數）與終極密碼（先手面對的範圍最大）都是長期優勢。
+  const turnStart = (roomMeta.turnStart || 0) + (advance ? 1 : 0);
+
+  const updates = {};
+  updates[`rooms/${currentRoomId}/meta/gameState`] = "lobby";
+  // 賽程整輪跑完、房主選擇從頭再來 → 這才是新的一場比賽，積分歸零
+  if (pos && pos.wrapped && !keepScores) {
+    updates[`rooms/${currentRoomId}/scores`] = null;
+    updates[`rooms/${currentRoomId}/meta/scoredRounds`] = null;
+    updates[`rooms/${currentRoomId}/meta/scoreCycle`] = 0;
+  }
+  // 保留積分繞回起點：局次 key 會被重複使用，舊標記不清掉就發不出新一輪的分
+  if (pos && pos.wrapped && keepScores) {
+    updates[`rooms/${currentRoomId}/meta/scoreCycle`] = (roomMeta.scoreCycle || 0) + 1;
+  }
+  // 沒有推進賽程就重來（中止本局／抽獎重新設定）：局次沒變，
+  // 必須把這一局已經發出去的分數與結算標記一起撤掉，否則會重複發分
+  if (!pos) {
+    updates[`rooms/${currentRoomId}/scores/${roundKey()}`] = null;
+    updates[`rooms/${currentRoomId}/meta/scoredRounds/${roundKey()}`] = null;
+  }
+  updates[`rooms/${currentRoomId}/meta/turnStart`] = turnStart;
+  updates[`rooms/${currentRoomId}/meta/turnIndex`] = turnStart;
+  if (pos) {
+    updates[`rooms/${currentRoomId}/meta/scheduleIndex`] = pos.index;
+    updates[`rooms/${currentRoomId}/meta/roundInStage`] = pos.round;
+    updates[`rooms/${currentRoomId}/meta/gameType`] = nextType;
+  }
+  updates[`rooms/${currentRoomId}/meta/winners`] = null;
+  updates[`rooms/${currentRoomId}/meta/finalists`] = null;
+  updates[`rooms/${currentRoomId}/meta/bingoRound`] = null;
+  updates[`rooms/${currentRoomId}/calledNumbers`] = null;
+  updates[`rooms/${currentRoomId}/pwState`] = null;
+  updates[`rooms/${currentRoomId}/pwGuesses`] = null;
+  updates[`rooms/${currentRoomId}/lotteryState`] = null;
+  updates[`rooms/${currentRoomId}/cardState`] = null;
+
+  const existingOrders = new Set(Object.values(players).map(p => p.order).filter(v => v != null));
+  const nextOrder = () => { let i = 1; while (existingOrders.has(i)) i++; existingOrders.add(i); return i; };
+  const spectators = Object.entries(players)
+    .filter(([, p]) => p.order == null)
+    .sort((a, b) => (a[1].joinedAt || 0) - (b[1].joinedAt || 0));
+
+  Object.keys(players).forEach(uid => {
+    updates[`rooms/${currentRoomId}/players/${uid}/ready`] = null;
+    updates[`rooms/${currentRoomId}/players/${uid}/brag`] = null;
+    if (nextType === "bingo") updates[`rooms/${currentRoomId}/boards/${uid}/numbers`] = randomBoard();
+  });
+  spectators.forEach(([uid]) => {
+    updates[`rooms/${currentRoomId}/players/${uid}/order`] = nextOrder();
+  });
+
+  await update(ref(db), updates);
+}
+
+lockBtn.addEventListener("click", async () => {
+  if (!isHost || !currentRoomId) return;
+  const state = roomMeta.gameState || "lobby";
+  if (state === "lobby") {
+    const list = Object.values(players);
+    if (!list.length) { alert("目前沒有玩家"); return; }
+    if (list.some(p => p.order == null)) { alert("請設置左側順位排序"); return; }
+    if (isCardGame()) {
+      // 21 點還要留牌給大家補牌，所以多抓一點餘裕
+      const per = cardsPerPlayer();
+      const decks = deckCount();
+      const need = list.length * per + (gameType() === "blackjack" ? list.length * 2 : 0);
+      if (need > 52 * decks) {
+        alert(`${decks} 副牌共 ${decks * 52} 張，${list.length} 人每人 ${per} 張不夠發。\n請減少人數／張數，或在左側把「用幾副牌」調高。`);
+        return;
+      }
+    }
+    const updates = {};
+    Object.keys(players).forEach(uid => {
+      updates[`rooms/${currentRoomId}/players/${uid}/ready`] = (uid === myUid) ? "ready" : "waiting";
+    });
+    updates[`rooms/${currentRoomId}/prepare`] = { active: true };
+    updates[`rooms/${currentRoomId}/meta/gameState`] = "preparing";
+    await update(ref(db), updates);
+    pushLog("房主啟動準備流程（房主自動視為已準備）");
+  } else if (state === "playing") {
+    if (!confirm("是否中止這一局？（賽程不會前進，會留在同一局重來）")) return;
+    await resetRoomForNewRound(false);
+    pushLog("房主中止了這一局");
+  } else if (state === "finished") {
+    const pos = nextSchedulePosition();
+    const sch = scheduleList();
+    const nextG = GAME_TYPES[sch[pos.index].type];
+    const desc = pos.wrapped
+      ? "賽程已經跑完，要從第 1 局重頭開始嗎？"
+      : pos.nextGame
+        ? `進入下一個遊戲「${nextG.icon} ${nextG.label}」？`
+        : `開始下一局（${nextG.label} 第 ${pos.round}/${sch[pos.index].rounds} 局）？`;
+    if (!confirm(desc + "\n（會清空本局的結果與號碼）")) return;
+    // 賽程繞回起點＝新的一場比賽。積分要不要歸零讓房主自己決定，
+    // 不然單一遊戲×1 局的房間（建房預設）每打完一局就會被無聲清光
+    let keepScores = false;
+    if (pos.wrapped && Object.keys(scores || {}).length) {
+      keepScores = !confirm("要順便把總積分歸零、開始新的一場比賽嗎？\n\n按「確定」＝積分歸零重新比\n按「取消」＝保留目前積分繼續累積");
+    }
+    await resetRoomForNewRound(true, keepScores);
+    pushLog(pos.wrapped ? "房主讓賽程從頭再跑一次"
+      : pos.nextGame ? `賽程推進到「${nextG.icon} ${nextG.label}」`
+      : `房主開始下一局（${nextG.label} ${pos.round}/${sch[pos.index].rounds}）`);
+  }
+});
+
+readyBtn.addEventListener("click", () => {
+  if (!currentRoomId) return;
+  update(ref(db, `rooms/${currentRoomId}/players/${myUid}`), { ready: "ready" });
+});
+readyCancelBtn.addEventListener("click", async () => {
+  if (!currentRoomId) return;
+  const updates = {};
+  updates[`rooms/${currentRoomId}/prepare`] = { active: false };
+  updates[`rooms/${currentRoomId}/meta/gameState`] = "lobby";
+  Object.keys(players).forEach(uid => { updates[`rooms/${currentRoomId}/players/${uid}/ready`] = null; });
+  await update(ref(db), updates);
+  pushLog(`${myName}：你們先別急`);
+});
+function renderReadyStatus() {
+  readyStatusEl.innerHTML = "";
+  Object.entries(players).forEach(([uid, p]) => {
+    const row = document.createElement("div");
+    row.className = "ready-status-row";
+    const left = document.createElement("span");
+    left.textContent = (uid === roomMeta.hostId ? "👑 " : "👤 ") + (p.name || "");
+    const right = document.createElement("span");
+    if (p.ready === "ready") { right.textContent = "已準備"; right.className = "st-ready"; }
+    else { right.textContent = "等候準備"; right.className = "st-wait"; }
+    row.appendChild(left); row.appendChild(right);
+    readyStatusEl.appendChild(row);
+  });
+  const list = Object.values(players);
+  if (isHost && list.length && list.every(p => p.ready === "ready") && roomMeta.gameState === "preparing" && !startingGame) {
+    startGame();
+  }
+}
+
+/* 正式開局。用 transaction 搶下 preparing→playing，避免在 meta 事件回來之前
+   被 players 監聽（例如 presence 心跳）再次觸發而重發一副牌、把已開的牌洗掉。 */
+let startingGame = false;
+async function startGame() {
+  startingGame = true;
+  try {
+    const claim = await runTransaction(ref(db, `rooms/${currentRoomId}/meta/gameState`), (cur) => {
+      if (cur !== "preparing") return;
+      return "playing";
+    });
+    if (!claim.committed) return;
+
+    const updates = {};
+    updates[`rooms/${currentRoomId}/prepare`] = { active: false };
+    // 密碼在正式開局的這一刻才產生，開局前資料庫裡不存在
+    if (gameType() === "password") updates[`rooms/${currentRoomId}/pwState`] = makePasswordState();
+    // 撲克牌遊戲在開局這一刻一次發完牌
+    const dealt = isCardGame() ? makeCardState() : null;
+    if (dealt) updates[`rooms/${currentRoomId}/cardState`] = dealt;
+    await update(ref(db), updates);
+
+    pushLog("所有玩家已準備，遊戲開始");
+    if (dealt) pushLog(cardDealLogText(dealt));
+    if (usesTurnOrder()) {
+      const firstUid = currentTurnUid();
+      const first = firstUid && players[firstUid];
+      if (first) pushLog(`🔄 本局由 ${first.name} 先開始（先手每局輪替）`);
+    }
+  } finally {
+    startingGame = false;
+  }
+}
+
+/* ===== 觀戰模式 =====
+   加賽時沒被選進決戰名單的人、以及中途加入還沒排到順位的人，
+   這一局都不能動作 —— 與其讓他們對著沒反應的畫面亂點，不如明講「先休息」並轉成觀戰。 */
+function spectateReason() {
+  const state = roomMeta.gameState || "lobby";
+  if (state !== "playing" && state !== "finished") return null;
+
+  if (!isActivePlayer(myUid)) return "playoff";
+  if (isCardGame() && Object.keys(cardState.hands || {}).length && !(cardState.hands || {})[myUid]) return "nodeal";
+  const me = players[myUid];
+  if (usesTurnOrder() && (!me || me.order == null)) return "noseat";
+  return null;
+}
+
+function renderSpectateBanner() {
+  const reason = spectateReason();
+  numberZoneEl.classList.toggle("spectating", !!reason);
+  if (!reason) {
+    spectateBannerEl.classList.add("hidden");
+    spectateBannerEl.innerHTML = "";
+    return;
+  }
+
+  const finalists = (finalistSet() ? [...finalistSet()] : [])
+    .map(uid => (players[uid] || {}).name || "?")
+    .filter(Boolean);
+  const finished = (roomMeta.gameState || "lobby") === "finished";
+
+  let big, sub;
+  if (reason === "playoff") {
+    big = finished ? "👀 加賽結束" : "☕ 你這一局已經出局，先休息一下";
+    sub = finalists.length
+      ? `目前由 ${escapeHtml(finalists.join("、"))} 進行加賽決戰，你可以在旁邊觀戰。`
+      : "你可以在旁邊觀戰，下一局就會重新加入。";
+  } else if (reason === "nodeal") {
+    big = "☕ 這一局沒有發到你的牌";
+    sub = "你可以先觀戰，下一局開始時就會發牌給你。";
+  } else {
+    big = "👀 觀戰中";
+    sub = "遊戲已經開始，你會在房主開下一局時自動排進順位。";
+  }
+  spectateBannerEl.classList.remove("hidden");
+  spectateBannerEl.innerHTML =
+    `<div class="big">${big}</div><div class="sub">${sub}</div>` +
+    (finished ? "" : `<div class="sub">積分榜與日誌照常更新，不會漏掉任何進度。</div>`);
+}
+
+/* ===== 輪次提示 / 跳過離線玩家 ===== */
+function currentTurnUid() {
+  const ordered = activeOrdered();
+  if (!ordered.length) return null;
+  const idx = (roomMeta.turnIndex || 0) % ordered.length;
+  return ordered[idx][0];
+}
+function renderTurnHint() {
+  const state = roomMeta.gameState || "lobby";
+  const gt = gameType();
+
+  // 牛牛／比大小沒有輪次，但有人離線不開牌一樣會卡住 —— 給房主一顆「代為開牌」
+  if ((gt === "niuniu" || gt === "compare") && state === "playing") {
+    const stuck = Object.keys(cardState.hands || {})
+      .filter(uid => !(cardState.shown || {})[uid] && (!players[uid] || players[uid].online !== true));
+    skipTurnBtn.classList.toggle("hidden", !(isHost && stuck.length));
+    skipTurnBtn.textContent = "代為開牌（離線）";
+    turnHintEl.className = "turn-hint idle";
+    turnHintEl.textContent = gt === "niuniu" ? "🐮 看牌並開牌" : "⚔️ 看牌並開牌";
+    numberZoneEl.classList.remove("my-turn");
+    return;
+  }
+  if (skipTurnBtn.textContent !== "跳過此玩家（離線）") skipTurnBtn.textContent = "跳過此玩家（離線）";
+
+  // 抽獎：自由搶模式沒有「輪到誰」的概念，只顯示整體進度
+  if (gt === "lottery") {
+    const freePick = (roomMeta.lotPickMode || "turn") === "free";
+    if (state === "playing" && !freePick) {
+      const uid = currentTurnUid();
+      const p = uid && players[uid];
+      turnHintEl.className = "turn-hint";
+      turnHintEl.textContent = p ? `🌟 ${p.name}，請掀一個杯子 🌟` : "";
+      skipTurnBtn.classList.toggle("hidden", !(isHost && p && p.online !== true));
+      numberZoneEl.classList.toggle("my-turn", uid === myUid);
+      return;
+    }
+    turnHintEl.className = "turn-hint idle";
+    turnHintEl.textContent = state === "playing" ? "🥤 開始搶杯子！"
+                           : state === "finished" ? "🏁 杯子都掀完了" : "尚未開始";
+    skipTurnBtn.classList.add("hidden");
+    numberZoneEl.classList.remove("my-turn");
+    return;
+  }
+
+  // 牛牛與比大小是大家同時進行的，沒有輪次，只顯示整體狀態
+  if (state === "playing" && !usesTurnOrder()) {
+    turnHintEl.className = "turn-hint idle";
+    turnHintEl.textContent = gt === "niuniu" ? "🐮 看牌並開牌" : "⚔️ 看牌並開牌";
+    skipTurnBtn.classList.add("hidden");
+    numberZoneEl.classList.remove("my-turn");
+    return;
+  }
+
+  if (state !== "playing") {
+    turnHintEl.className = "turn-hint idle";
+    turnHintEl.textContent = state === "preparing" ? "準備中…" : state === "finished" ? "🏁 本局結束" : "尚未開始";
+    skipTurnBtn.classList.add("hidden");
+    numberZoneEl.classList.remove("my-turn");
+    return;
+  }
+  const uid = currentTurnUid();
+  const p = uid && players[uid];
+  turnHintEl.className = "turn-hint";
+  const playoff = gt === "bingo" && (roomMeta.bingoRound || 1) > 1 ? "⚔️加賽 " : "";
+  const action = gt === "password" ? "請猜數字" : gt === "blackjack" ? "要牌或停牌" : "請選號";
+  turnHintEl.textContent = p ? `${playoff}🌟 ${p.name}，${action} 🌟` : "";
+  skipTurnBtn.classList.toggle("hidden", !(isHost && p && p.online !== true));
+  numberZoneEl.classList.toggle("my-turn", uid === myUid);
+}
+skipTurnBtn.addEventListener("click", async () => {
+  if (!isHost || !currentRoomId) return;
+  const uid = currentTurnUid();
+  const p = uid && players[uid];
+  const gt = gameType();
+  pushLog(`房主跳過了 ${p ? p.name : "離線玩家"}（離線中）`);
+
+  if ((gt === "niuniu" || gt === "compare")) {
+    // 把所有離線又還沒開牌的人代為開牌，讓結算得以進行
+    const res = await runTransaction(ref(db, `rooms/${currentRoomId}/cardState`), (st) => {
+      if (!st || !st.hands) return;
+      const shown = st.shown || {};
+      let touched = false;
+      Object.keys(st.hands).forEach(u => {
+        if (!shown[u] && (!players[u] || players[u].online !== true)) { shown[u] = true; touched = true; }
+      });
+      if (!touched) return;
+      st.shown = shown;
+      return st;
+    });
+    if (res.committed) {
+      const after = res.snapshot.val() || {};
+      if (Object.keys(after.hands || {}).every(u => (after.shown || {})[u])) await settleCardGame(after);
+    }
+    return;
+  }
+  if (gt === "blackjack" && uid) {
+    // 一定要把他標成「已停牌」，否則輪次會一直繞回這個離線的人，整局永遠無法結算
+    const res = await runTransaction(ref(db, `rooms/${currentRoomId}/cardState`), (st) => {
+      if (!st || !st.hands || !st.hands[uid]) return;
+      const stood = st.stood || {};
+      stood[uid] = true;
+      st.stood = stood;
+      return st;
+    });
+    await advanceCardTurn((res.committed ? res.snapshot.val() : cardState) || {});
+    return;
+  }
+  if (gt === "lottery") {
+    // 用正規的推進邏輯（會跳過已達上限者），單純 +1 會落在掀不了的人身上而死鎖
+    await advanceLotteryTurn(lotState);
+    await reviveLotteryIfStuck();
+    return;
+  }
+  await runTransaction(ref(db, `rooms/${currentRoomId}/meta/turnIndex`), (v) => (v || 0) + 1);
+});
+
+/* ===== 號碼渲染 / 點擊 ===== */
+function isMyTurn() {
+  return (roomMeta.gameState === "playing") && currentTurnUid() === myUid;
+}
+/* 統一的可點擊判斷：號碼一旦叫出就不可再變動；尚未叫出的話，只有輪到我才能叫 */
+function canClickNumber(n) {
+  if (roomMeta.gameState !== "playing") return false;
+  if (calledNumbers[n]) return false;
+  if (!isActivePlayer(myUid)) return false;   // 加賽時已出局的人不能叫號
+  return isMyTurn();
+}
+function applyCalledStyle(el, num) {
+  const called = calledNumbers[num];
+  if (called) {
+    const c = colorForUid(called.by);
+    el.style.background = c;
+    el.style.borderColor = c;
+  } else {
+    el.style.background = "";
+    el.style.borderColor = "";
+  }
+}
+function renderPublicGrid() {
+  publicGridEl.innerHTML = "";
+  for (let n = 1; n <= 50; n++) {
+    const btn = document.createElement("button");
+    btn.className = "num-btn" + (calledNumbers[n] ? " active" : "");
+    applyCalledStyle(btn, n);
+    btn.textContent = n;
+    btn.disabled = !canClickNumber(n);
+    btn.addEventListener("click", () => handleNumberClick(n));
+    publicGridEl.appendChild(btn);
+  }
+}
+function renderMyCard() {
+  myCardEl.innerHTML = "";
+  // 加賽出局後，自己手上那張是上一輪的舊卡，顯示出來只會造成誤會
+  if (gameType() === "bingo" && spectateReason() === "playoff") {
+    const note = document.createElement("div");
+    note.className = "muted";
+    note.style.cssText = "grid-column:1/-1;text-align:center;padding:10px;";
+    note.textContent = "（加賽中，下一局才會重新發卡）";
+    myCardEl.appendChild(note);
+    return;
+  }
+  myBoard.forEach(n => {
+    const btn = document.createElement("button");
+    btn.className = "num-btn" + (calledNumbers[n] ? " active" : "");
+    applyCalledStyle(btn, n);
+    btn.textContent = n;
+    btn.disabled = !canClickNumber(n);
+    btn.addEventListener("click", () => handleNumberClick(n));
+    myCardEl.appendChild(btn);
+  });
+}
+async function handleNumberClick(num) {
+  if (!currentRoomId || roomMeta.gameState !== "playing") return;
+  if (calledNumbers[num]) return; // 已經叫出的號碼不可再變動，避免爭議
+  if (!isActivePlayer(myUid)) return;   // 加賽出局者不能叫號（按鈕理論上已停用，這裡再擋一次）
+  if (!isMyTurn()) return;
+
+  // 先把時間戳記釘死在「送出叫號請求之前」，確保這一定早於這次叫號連帶觸發的任何反應（例如各端的 BINGO 判定日誌）
+  const callTimestamp = Date.now();
+  const numRef = ref(db, `rooms/${currentRoomId}/calledNumbers/${num}`);
+  const result = await runTransaction(numRef, (curr) => {
+    if (curr) return; // 已被別人搶先叫走，放棄
+    return { by: myUid, byName: myName, at: callTimestamp };
+  });
+  if (!result.committed) return;
+
+  pushLog(`${myName}：${num}`, callTimestamp);
+  // 輪次遞增不用等它完成，不影響後續流程
+  runTransaction(ref(db, `rooms/${currentRoomId}/meta/turnIndex`), (v) => (v || 0) + 1);
+}
+
+/* ===== Bingo 计算 & 炫耀 ===== */
+function updateBingoCount() {
+  if (gameType() !== "bingo") return;
+  const selected = new Set(Object.keys(calledNumbers).map(Number));
+  const lines = calcBingoLines(myBoard, selected);
+  bingoCountEl.textContent = lines;
+  updateBragButton(lines);
+  checkWinCondition(lines);
+}
+
+/* ===== 達標判定：幾條算 BINGO + 先搶先贏／系統自動判定 ===== */
+let myWinRegistered = false;
+let prevBingoRound = 1;
+
+/* 加賽打滿上限仍平手時，用「條數多 → 先達成」挑出唯一勝者，避免該局不發分 */
+async function forceBingoWinner() {
+  if (!currentRoomId || gameType() !== "bingo") return;
+  if ((roomMeta.gameState || "lobby") !== "finished") return;
+  if ((roomMeta.bingoRound || 1) < 12) return;
+  const entries = Object.entries(roomMeta.winners || {});
+  if (entries.length <= 1) return;
+  entries.sort((a, b) => (b[1].lines || 0) - (a[1].lines || 0) || (a[1].at || 0) - (b[1].at || 0));
+  const [uid, w] = entries[0];
+  await update(ref(db, `rooms/${currentRoomId}/meta`), { winners: { [uid]: w } });
+  pushLog(`⚖️ 加賽已達上限，由 ${w.name || "?"}（${w.lines} 條、最早達成）獲勝`);
+}
+
+function checkWinCondition(lines) {
+  if (!currentRoomId) return;
+  if (!isActivePlayer(myUid)) { raceRowEl.classList.add("hidden"); return; }
+  const state = roomMeta.gameState || "lobby";
+  const threshold = roomMeta.bingoThreshold || 1;
+  const mode = roomMeta.winMode || "race";
+
+  if (mode === "race") {
+    const showRace = state === "playing" && lines >= threshold;
+    raceRowEl.classList.toggle("hidden", !showRace);
+    raceSubmitBtn.classList.toggle("ready", showRace);
+    return;
+  }
+
+  // 系統自動判定：只要目前「已叫出的號碼」讓自己達標就登記，
+  // 就算此時 gameState 已經被別人搶先切成 finished（同一批號碼造成的同時達標），也照樣登記，避免漏抓
+  raceRowEl.classList.add("hidden");
+  if (state !== "playing" && state !== "finished") return;
+  const reached = lines >= threshold;
+  // 加賽次數已用盡（極端情況）：不再開賽，直接讓條數最多、同條數則最早達成的人獲勝
+  if (reached && !myWinRegistered) {
+    myWinRegistered = true;
+    update(ref(db, `rooms/${currentRoomId}/meta/winners`), {
+      [myUid]: { name: myName, lines, board: myBoard, at: Date.now() }
+    });
+    if (state === "playing") {
+      update(ref(db, `rooms/${currentRoomId}/meta`), { gameState: "finished" });
+    }
+    pushLog(`🏆 ${myName} 達成 ${lines} 條 BINGO`);
+  }
+}
+
+/* 「系統自動判定」模式可能多人同時達標 —— 重新發牌，只讓同分的人再比一次。
+
+   兩個關鍵處理：
+   (a) 先等一小段時間再開賽。同一批號碼造成的達標登記是陸續抵達的，
+       太早開賽會把還沒登記到的人排除在決賽名單外。
+   (b) 搶到發動權之後「一次寫完」所有欄位。舊版先把 gameState 改成 playing、
+       隔一個往返才寫 finalists/calledNumbers，中間的空窗期會讓遲到的登記
+       把加賽當場結束，甚至讓沒參加加賽的人變成勝者。 */
+let bingoPlayoffTimer = null;
+function maybeBingoPlayoff() {
+  if (!currentRoomId || gameType() !== "bingo") return;
+  if ((roomMeta.gameState || "lobby") !== "finished") return;
+  if (Object.keys(roomMeta.winners || {}).length <= 1) return;
+  if ((roomMeta.bingoRound || 1) >= 12) return;   // 保險，避免極端情況打不完
+  if (bingoPlayoffTimer) return;
+  bingoPlayoffTimer = setTimeout(() => { bingoPlayoffTimer = null; startBingoPlayoff(); }, 1200);
+}
+
+async function startBingoPlayoff() {
+  if (!currentRoomId || gameType() !== "bingo") return;
+  if ((roomMeta.gameState || "lobby") !== "finished") return;
+  const round = (roomMeta.bingoRound || 1) + 1;
+  if (round > 12) return;
+
+  // 只把「還在房間裡」的達標者列入決賽，否則會復活已離開玩家的號碼盤，
+  // 甚至讓決賽名單裡沒有任何在場玩家而整局卡死
+  const uids = Object.keys(roomMeta.winners || {}).filter(uid => players[uid]);
+  if (uids.length <= 1) return;
+
+  // 用 bingoRound 當發動權：搶到的人才負責寫入，其他人放棄
+  const claim = await runTransaction(
+    ref(db, `rooms/${currentRoomId}/meta/bingoRound`),
+    (cur) => ((cur || 1) >= round ? undefined : round)
+  );
+  if (!claim.committed) return;
+
+  const updates = {};
+  updates[`rooms/${currentRoomId}/meta/gameState`] = "playing";
+  // 第一位達標者已經把 gameState 切成 finished，可能已經結算過這一局；
+  // 加賽等於「這局還沒結束」，要把發出去的分與標記一起撤掉
+  updates[`rooms/${currentRoomId}/scores/${roundKey()}`] = null;
+  updates[`rooms/${currentRoomId}/meta/scoredRounds/${roundKey()}`] = null;
+  updates[`rooms/${currentRoomId}/calledNumbers`] = null;
+  updates[`rooms/${currentRoomId}/meta/winners`] = null;
+  updates[`rooms/${currentRoomId}/meta/finalists`] = uids;
+  updates[`rooms/${currentRoomId}/meta/turnIndex`] = roomMeta.turnStart || 0;
+  uids.forEach(uid => { updates[`rooms/${currentRoomId}/boards/${uid}/numbers`] = randomBoard(); });
+  await update(ref(db), updates);
+
+  const names = uids.map(u => (players[u] || {}).name || "?").join("、");
+  pushLog(`⚔️ 同時 BINGO 加賽第 ${round - 1} 輪：${names} 重新發牌再比一次`);
+}
+
+raceSubmitBtn.addEventListener("click", async () => {
+  if (!currentRoomId || (roomMeta.gameState || "lobby") !== "playing") return;
+  const selected = new Set(Object.keys(calledNumbers).map(Number));
+  const lines = calcBingoLines(myBoard, selected);
+  const threshold = roomMeta.bingoThreshold || 1;
+  if (lines < threshold) return;
+
+  const result = await runTransaction(ref(db, `rooms/${currentRoomId}/meta/gameState`), (curr) => {
+    if (curr !== "playing") return; // 已經有人搶先送出，放棄
+    return "finished";
+  });
+  if (!result.committed) { alert("已經有人搶先送出了！"); return; }
+
+  await update(ref(db, `rooms/${currentRoomId}/meta/winners`), {
+    [myUid]: { name: myName, lines, board: myBoard }
+  });
+  pushLog(`🏆 ${myName} 搶先送出 BINGO（${lines} 條）！`);
+});
+
+function buildWinnerBoard(boardNums) {
+  const wrap = document.createElement("div");
+  wrap.className = "my-card-grid winner-board";
+  const selected = new Set(Object.keys(calledNumbers).map(Number));
+  (boardNums || []).forEach(n => {
+    const cell = document.createElement("div");
+    cell.className = "num-btn" + (selected.has(n) ? " active" : "");
+    applyCalledStyle(cell, n);
+    cell.textContent = n;
+    wrap.appendChild(cell);
+  });
+  return wrap;
+}
+
+function renderWinnersPanel() {
+  const state = roomMeta.gameState || "lobby";
+  // 終極密碼與抽獎有自己的結果區塊，共用的勝利面板只服務賓果
+  if (gameType() !== "bingo" || state !== "finished") {
+    winnersPanelEl.classList.add("hidden");
+    winnersPanelEl.innerHTML = "";
+    return;
+  }
+  winnersPanelEl.classList.remove("hidden");
+  winnersPanelEl.innerHTML = "";
+  const winners = roomMeta.winners || {};
+  const entries = Object.entries(winners);
+  const mode = roomMeta.winMode || "race";
+
+  const title = document.createElement("div");
+  title.className = "winners-title";
+  title.textContent = entries.length ? "🏆 本局結果" : "本局已結束";
+  winnersPanelEl.appendChild(title);
+
+  if (!entries.length) {
+    const none = document.createElement("div");
+    none.className = "winners-sub";
+    none.textContent = "沒有玩家達成設定的 BINGO 條數";
+    winnersPanelEl.appendChild(none);
+    return;
+  }
+
+  if (mode === "race") {
+    const [, w] = entries[0];
+    const sub = document.createElement("div");
+    sub.className = "winners-sub";
+    sub.innerHTML = `<span class="winner-name">${escapeHtml(w.name)}</span> 搶先達成 ${w.lines} 條 BINGO！`;
+    winnersPanelEl.appendChild(sub);
+    winnersPanelEl.appendChild(buildWinnerBoard(w.board));
+  } else {
+    const sub = document.createElement("div");
+    sub.className = "winners-sub";
+    sub.textContent = "點名字可查看該玩家的卡片";
+    winnersPanelEl.appendChild(sub);
+
+    const pillRow = document.createElement("div");
+    pillRow.className = "winner-pill-row";
+    entries.forEach(([uid, w]) => {
+      const pill = document.createElement("button");
+      pill.className = "winner-pill";
+      pill.dataset.name = w.name;
+      pill.textContent = `${w.name}（我要驗牌）`;
+      pill.addEventListener("click", () => {
+        const wasOpen = pill.classList.contains("open");
+        pillRow.querySelectorAll(".winner-pill").forEach(el => {
+          el.classList.remove("open");
+          el.textContent = `${el.dataset.name}（我要驗牌）`;
+        });
+        winnersPanelEl.querySelectorAll(".winner-board").forEach(el => el.remove());
+        if (!wasOpen) {
+          pill.classList.add("open");
+          pill.textContent = `${w.name}（牌沒有問題！）`;
+          winnersPanelEl.appendChild(buildWinnerBoard(w.board));
+        }
+      });
+      pillRow.appendChild(pill);
+    });
+    winnersPanelEl.appendChild(pillRow);
+  }
+}
+function updateBragButton(lines) {
+  if (lines === undefined) {
+    const selected = new Set(Object.keys(calledNumbers).map(Number));
+    lines = calcBingoLines(myBoard, selected);
+  }
+  if (lines <= 0) { bragBtn.disabled = true; bragMsgEl.textContent = ""; return; }
+  if (bragState.count !== lines) { bragBtn.disabled = false; bragMsgEl.textContent = ""; return; }
+  if (bragState.locked) { bragBtn.disabled = true; bragMsgEl.textContent = "低調!低調!"; }
+  else { bragBtn.disabled = false; bragMsgEl.textContent = ""; }
+}
+bragBtn.addEventListener("click", async () => {
+  if (!currentRoomId) return;
+  const selected = new Set(Object.keys(calledNumbers).map(Number));
+  const lines = calcBingoLines(myBoard, selected);
+  if (lines <= 0) return;
+
+  let next;
+  if (bragState.count !== lines) next = { count: lines, times: 1, locked: false };
+  else {
+    if (bragState.locked) return;
+    const times = (bragState.times || 0) + 1;
+    next = { count: lines, times, locked: times >= 3 };
+  }
+  bragState = next;
+  await update(ref(db, `rooms/${currentRoomId}/players/${myUid}`), { brag: next });
+  pushLog(`${myName}：我已經 ${lines} 條 BINGO！`);
+  updateBragButton(lines);
+});
+
+/* =========================================================================
+   遊戲二：終極密碼
+   密碼在「所有人準備完成、正式開局」的那一刻才由房主寫入 pwState，
+   每次猜測都用 transaction 更新範圍，確保同時送出時不會兩邊各縮各的。
+   ========================================================================= */
+function makePasswordState() {
+  let lo = parseInt(roomMeta.pwMin, 10);
+  let hi = parseInt(roomMeta.pwMax, 10);
+  // fallback 必須跟畫面顯示的 (?? 1 / ?? 100) 一致，
+  // 否則沒設定過範圍的房間畫面寫 1～100、實際卻開成 1～3
+  if (!Number.isFinite(lo)) lo = 1;
+  if (!Number.isFinite(hi)) hi = 100;
+  if (hi - lo < 2) hi = lo + 2;
+  return { lo, hi, secret: lo + Math.floor(Math.random() * (hi - lo + 1)) };
+}
+
+function renderPasswordZone() {
+  if (gameType() !== "password") return;
+  const state = roomMeta.gameState || "lobby";
+  const started = pwState.lo != null;
+  const lo = started ? pwState.lo : (roomMeta.pwMin ?? 1);
+  const hi = started ? pwState.hi : (roomMeta.pwMax ?? 100);
+  pwLoEl.textContent = lo;
+  pwHiEl.textContent = hi;
+
+  const hit = !!pwState.hitBy;
+  const myTurn = state === "playing" && !hit && currentTurnUid() === myUid;
+  pwGuessInput.disabled = !myTurn;
+  pwGuessBtn.disabled = !myTurn;
+  pwGuessInput.min = lo;
+  pwGuessInput.max = hi;
+  if (!myTurn) pwGuessInput.value = "";
+  pwGuessInput.placeholder = myTurn ? `${lo} ～ ${hi}` : "?";
+
+  const hitRole = roomMeta.pwHitRole || "lose";
+  if (!started) {
+    pwTipEl.textContent = isHost ? "設定好範圍後，按左上「鎖定」開始這一局。" : "等房主開始這一局。";
+  } else if (hit) {
+    pwTipEl.textContent = "本局結束，房主可按左上「開始新的一局」再來一次。";
+  } else if (myTurn) {
+    pwTipEl.textContent = `輪到你了！在 ${lo} ～ ${hi} 之間挑一個數字。`;
+  } else {
+    pwTipEl.textContent = hitRole === "win"
+      ? `誰先猜中誰贏 🏆，範圍會愈縮愈小。`
+      : `猜中的人受罰 💀，範圍會愈縮愈小。`;
+  }
+
+  if (hit) {
+    pwResultEl.classList.remove("hidden");
+    pwResultEl.innerHTML =
+      `<div class="big">💥 <span class="who-hit">${escapeHtml(pwState.hitByName || "")}</span> 猜中了終極密碼！</div>` +
+      `<div class="sub">${hitRole === "win" ? "恭喜獲勝 🏆" : "接受懲罰吧 💀"}</div>` +
+      `<div class="pw-secret">${pwState.hitNum}</div>`;
+  } else {
+    pwResultEl.classList.add("hidden");
+    pwResultEl.innerHTML = "";
+  }
+}
+
+function renderPasswordGuesses() {
+  if (gameType() !== "password") return;
+  pwGuessListEl.innerHTML = "";
+  const list = Object.values(pwGuesses).sort((a, b) => (a.at || 0) - (b.at || 0));
+  if (!list.length) {
+    const none = document.createElement("span");
+    none.className = "muted";
+    none.textContent = "還沒有人猜過";
+    pwGuessListEl.appendChild(none);
+    return;
+  }
+  list.forEach(g => {
+    const el = document.createElement("span");
+    el.className = "pw-guess " + (g.hit ? "hit" : g.dir === "low" ? "low" : "high");
+    const who = document.createElement("span");
+    who.className = "who";
+    who.textContent = g.name || "";
+    const num = document.createElement("span");
+    num.textContent = g.hit ? `${g.num} 💥` : (g.dir === "low" ? `${g.num} ↑` : `${g.num} ↓`);
+    el.appendChild(who);
+    el.appendChild(num);
+    pwGuessListEl.appendChild(el);
+  });
+}
+
+async function submitPasswordGuess() {
+  if (!currentRoomId || gameType() !== "password") return;
+  if ((roomMeta.gameState || "lobby") !== "playing") return;
+  if (pwState.hitBy || currentTurnUid() !== myUid) return;
+
+  const g = parseInt(pwGuessInput.value, 10);
+  if (!Number.isFinite(g)) { alert("請先輸入一個數字"); return; }
+  if (g < pwState.lo || g > pwState.hi) { alert(`要猜 ${pwState.lo} ～ ${pwState.hi} 之間的數字`); return; }
+
+  const at = Date.now();
+  const res = await runTransaction(ref(db, `rooms/${currentRoomId}/pwState`), (s) => {
+    if (!s || s.hitBy) return;            // 已經有人猜中，這次作廢
+    if (g < s.lo || g > s.hi) return;     // 範圍已被別人縮掉，這次作廢
+    if (g === s.secret) { s.hitBy = myUid; s.hitByName = myName; s.hitNum = g; }
+    else if (g < s.secret) s.lo = g + 1;
+    else s.hi = g - 1;
+    return s;
+  });
+  if (!res.committed) { alert("範圍剛剛被別人縮小了，請看一下目前範圍再猜一次"); return; }
+
+  const after = res.snapshot.val() || {};
+  const hit = after.hitBy === myUid && after.hitNum === g;
+  // 不回頭讀 secret，用縮小後的邊界反推方向就夠了
+  const dir = hit ? null : (after.lo === g + 1 ? "low" : "high");
+
+  pwGuessInput.value = "";
+  await push(ref(db, `rooms/${currentRoomId}/pwGuesses`), { uid: myUid, name: myName, num: g, hit, dir, at });
+
+  if (hit) {
+    const role = roomMeta.pwHitRole || "lose";
+    await update(ref(db), {
+      [`rooms/${currentRoomId}/meta/gameState`]: "finished",
+      [`rooms/${currentRoomId}/meta/winners`]: { [myUid]: { name: myName, hitNum: g, role } }
+    });
+    pushLog(`💥 ${myName} 猜中終極密碼 ${g}！${role === "win" ? "獲勝 🏆" : "接受懲罰 💀"}`, at);
+  } else {
+    pushLog(`${myName} 猜 ${g} → ${dir === "low" ? "太小了 ↑" : "太大了 ↓"}（剩 ${after.lo} ～ ${after.hi}）`, at);
+    runTransaction(ref(db, `rooms/${currentRoomId}/meta/turnIndex`), (v) => (v || 0) + 1);
+  }
+}
+pwGuessBtn.addEventListener("click", submitPasswordGuess);
+pwGuessInput.addEventListener("keydown", (e) => { if (e.key === "Enter") submitPasswordGuess(); });
+
+/* =========================================================================
+   遊戲四～六：21點 ／ 牛牛 ／ 比大小（共用同一副牌與同一套結算流程）
+
+   牌號 0..(52×副數-1)，牌面 = 牌號 % 52。發牌一律從「還沒發出去的牌」裡隨機取，
+   所以同一局不會發出重複的牌號；但用 2 副以上時，同一個「牌面」仍可能出現在兩個人手上。
+   因此「每局決出唯一勝者」靠的不是比大小，而是同分就重新洗牌加賽，直到分出勝負為止。
+   ========================================================================= */
+const SUIT_CHARS = ["♠", "♥", "♦", "♣"];
+const RANK_CHARS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+/* 牌號 0..(52×副數-1)；同一張牌在不同副牌會是不同的號碼，但牌面相同 */
+const cardFace = (c) => c % 52;
+const cardSuit = (c) => Math.floor(cardFace(c) / 13);
+const cardRank = (c) => cardFace(c) % 13;             // 0=A … 12=K
+const cardPips = (c) => cardRank(c) + 1;              // A=1 … K=13
+const cardTen  = (c) => Math.min(cardRank(c) + 1, 10); // J/Q/K 都算 10
+const cardIsRed = (c) => cardSuit(c) === 1 || cardSuit(c) === 2;
+const cardPower = (c) => cardPips(c) * 4 + (3 - cardSuit(c));
+const cardName = (c) => SUIT_CHARS[cardSuit(c)] + RANK_CHARS[cardRank(c)];
+function deckCount() { return Math.min(4, Math.max(1, roomMeta.cardDecks ?? 1)); }
+
+function handsUsedCards(hands) {
+  const used = new Set();
+  Object.values(hands || {}).forEach(h => (h || []).forEach(c => used.add(c)));
+  return used;
+}
+/* 從還沒發出去的牌裡隨機抽 n 張（decks 副牌，共 52×decks 張） */
+function drawCards(hands, n, decks) {
+  const total = 52 * Math.min(4, Math.max(1, decks || 1));
+  const used = handsUsedCards(hands);
+  const pool = [];
+  for (let c = 0; c < total; c++) if (!used.has(c)) pool.push(c);
+  const out = [];
+  for (let i = 0; i < n && pool.length; i++) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  return out;
+}
+
+/* ---- 各遊戲的計分 ---- */
+function bjPoints(hand) {
+  let sum = 0, aces = 0;
+  (hand || []).forEach(c => { if (cardRank(c) === 0) { aces++; sum += 1; } else sum += cardTen(c); });
+  while (aces > 0 && sum + 10 <= 21) { sum += 10; aces--; }   // A 能當 11 就當 11
+  return sum;
+}
+function niuPoints(hand) {
+  const v = (hand || []).map(cardTen);
+  if (v.length !== 5) return { niu: -1, label: "—" };
+  for (let a = 0; a < 3; a++) for (let b = a + 1; b < 4; b++) for (let c = b + 1; c < 5; c++) {
+    if ((v[a] + v[b] + v[c]) % 10 !== 0) continue;
+    const rest = v.reduce((n, x, i) => (i === a || i === b || i === c) ? n : n + x, 0);
+    const n = rest % 10 === 0 ? 10 : rest % 10;
+    return { niu: n, label: n === 10 ? "牛牛" : "牛" + n };
+  }
+  return { niu: 0, label: "無牛" };
+}
+/* 統一成 { value, label, bust }；value 越大越強 */
+function scoreHand(gt, hand) {
+  if (!hand || !hand.length) return { value: -1, label: "—", bust: false };
+  if (gt === "blackjack") {
+    const p = bjPoints(hand);
+    const bust = p > 21;
+    // 沒爆的一定贏過爆掉的；都爆的話，爆得比較少（最接近 21）的排前面
+    return { value: bust ? 100 - (p - 21) : 1000 + p, label: bust ? `${p} 爆` : `${p} 點`, bust };
+  }
+  if (gt === "niuniu") {
+    const r = niuPoints(hand);
+    return { value: r.niu, label: r.label, bust: false };
+  }
+  const total = hand.reduce((n, c) => n + cardPips(c), 0);
+  return { value: total, label: `${total} 點`, bust: false };
+}
+/* 手牌強度序列（由大到小），僅供排名顯示時排序用 */
+function handTop(hand) { return (hand || []).reduce((m, c) => Math.max(m, cardPower(c)), -1); }
+/* 排名：先比分數，同分的人並列在一起（真正的勝負交給加賽決定）。
+   已經離開房間的人要排除 —— 否則他可能被判為勝者，拿走該局積分卻不在牌桌上。 */
+function rankHands(gt, hands) {
+  return Object.entries(hands || {})
+    .filter(([uid]) => players[uid])
+    .map(([uid, hand]) => ({ uid, hand: hand || [], ...scoreHand(gt, hand), top: handTop(hand) }))
+    .sort((a, b) => b.value - a.value || b.top - a.top);
+}
+/* 目前並列第一的人（可能不只一個 → 要加賽） */
+function topTied(ranked) {
+  if (!ranked.length) return [];
+  return ranked.filter(r => r.value === ranked[0].value);
+}
+
+/* ---- 牌局狀態 ---- */
+function cardsPerPlayer() {
+  const gt = gameType();
+  if (gt === "niuniu") return 5;
+  if (gt === "blackjack") return Math.min(3, Math.max(1, roomMeta.bjInitial ?? 2));
+  return Math.min(5, Math.max(1, roomMeta.cmpCards ?? 1));
+}
+/* 21 點的牌是明牌（看得到別人才有得玩）；牛牛與比大小是暗牌，各自開牌後才公開 */
+function cardsAreOpen() { return gameType() === "blackjack"; }
+
+/* 洗一副全新的牌並發給指定座位。每次呼叫都從完整牌堆重新開始 = 重新洗牌 */
+function makeCardState(seats, round) {
+  const list = seats || orderedPlayers().map(([uid]) => uid);
+  const per = cardsPerPlayer();
+  const decks = deckCount();
+  const hands = {};
+  list.forEach(uid => { hands[uid] = drawCards(hands, per, decks); });
+  return { game: gameType(), per, decks, round: round || 1, finalists: list, hands };
+}
+
+/* 本局勝者（結算時寫進 meta.winners，加賽的結果也在裡面） */
+function cardWinnerUid() {
+  const keys = Object.keys(roomMeta.winners || {});
+  return keys.length ? keys[0] : null;
+}
+
+function renderCardZone() {
+  if (!isCardGame()) return;
+  const gt = gameType();
+  const state = roomMeta.gameState || "lobby";
+  const hands = cardState.hands || {};
+  const seats = orderedPlayers().map(([uid]) => uid).filter(uid => hands[uid]);
+  const finished = state === "finished";
+  const open = cardsAreOpen() || finished;
+  const shown = cardState.shown || {};
+  const stood = cardState.stood || {};
+  const turnUid = usesTurnOrder() ? currentTurnUid() : null;
+
+  // 動作按鈕
+  const myHand = hands[myUid];
+  const myTurn = state === "playing" && turnUid === myUid && myHand && !stood[myUid];
+  bjHitBtn.classList.toggle("hidden", !(gt === "blackjack" && myTurn));
+  bjStandBtn.classList.toggle("hidden", !(gt === "blackjack" && myTurn));
+  const canShow = state === "playing" && gt !== "blackjack" && myHand && !shown[myUid];
+  showHandBtn.classList.toggle("hidden", !canShow);
+
+  // 狀態提示（加賽時先標明現在是第幾輪、誰還在場）
+  const playoff = (cardState.round || 1) > 1;
+  const playoffTag = playoff ? `⚔️ 同分加賽第 ${(cardState.round || 1) - 1} 輪　` : "";
+  if (state === "lobby") {
+    cardStatusEl.textContent = isHost ? "按左上「鎖定」開始這一局，發牌後才會抽牌。" : "等房主開始這一局。";
+  } else if (state === "preparing") {
+    cardStatusEl.textContent = "準備中…";
+  } else if (finished) {
+    cardStatusEl.textContent = "本局結束，房主可推進到下一局。";
+  } else if (gt === "blackjack") {
+    const left = seats.filter(uid => !stood[uid]).length;
+    cardStatusEl.textContent = playoffTag + (myTurn ? "輪到你了：要牌還是停牌？" : `還有 ${left} 位玩家沒停牌`);
+  } else {
+    const left = seats.filter(uid => !shown[uid]).length;
+    cardStatusEl.textContent = playoffTag + (canShow
+      ? "看好自己的牌，按「開牌」公開給大家"
+      : left ? `還有 ${left} 位玩家沒開牌` : "全部開牌，結算中…");
+  }
+  if (!finished && state === "playing" && playoff) {
+    cardStatusEl.textContent += `（只剩 ${seats.length} 人在場）`;
+  }
+
+  // 每位玩家一行
+  cardListEl.innerHTML = "";
+  const winUid = finished ? cardWinnerUid() : null;
+
+  seats.forEach(uid => {
+    const p = players[uid] || {};
+    const hand = hands[uid] || [];
+    const mine = uid === myUid;
+    const visible = open || shown[uid] || mine;   // 自己的牌永遠看得到
+
+    const row = document.createElement("div");
+    row.className = "hand-row"
+      + (mine ? " me" : "")
+      + (uid === turnUid && state === "playing" ? " turn" : "")
+      + ((gt === "blackjack" && stood[uid] && scoreHand(gt, hand).bust) ? " out" : "");
+
+    const who = document.createElement("span");
+    who.className = "who";
+    who.textContent = (uid === winUid ? "🏆 " : "") + (p.name || "(未命名)");
+    row.appendChild(who);
+
+    const cards = document.createElement("span");
+    cards.className = "cards";
+    hand.forEach(c => cards.appendChild(buildCard(c, visible)));
+    row.appendChild(cards);
+
+    const sc = document.createElement("span");
+    sc.className = "sc";
+    if (visible) {
+      const s = scoreHand(gt, hand);
+      sc.textContent = s.label;
+      if (s.bust) sc.classList.add("bust");
+      if (uid === winUid) sc.classList.add("top");
+      if (gt === "blackjack" && state === "playing" && stood[uid] && !s.bust) sc.textContent += "・停";
+    } else {
+      sc.textContent = shown[uid] ? "" : "未開牌";
+    }
+    row.appendChild(sc);
+    cardListEl.appendChild(row);
+  });
+
+  renderCardResult(gt, hands, finished, seats.length);
+}
+
+function buildCard(c, visible) {
+  const el = document.createElement("span");
+  if (!visible) { el.className = "pcard back"; el.textContent = "?"; return el; }
+  el.className = "pcard" + (cardIsRed(c) ? " red" : "");
+  const r = document.createElement("span");
+  r.textContent = RANK_CHARS[cardRank(c)];
+  const s = document.createElement("span");
+  s.className = "s";
+  s.textContent = SUIT_CHARS[cardSuit(c)];
+  el.appendChild(r); el.appendChild(s);
+  return el;
+}
+
+function renderCardResult(gt, hands, finished, seatCount) {
+  if (!finished || !seatCount) {
+    cardResultEl.classList.add("hidden");
+    cardResultEl.innerHTML = "";
+    return;
+  }
+  const ranked = rankHands(gt, hands);
+  if (!ranked.length) { cardResultEl.classList.add("hidden"); return; }
+  // 勝者以資料庫寫入的為準（可能是加賽打出來的），沒有才退回用手牌推算
+  const winUid = cardWinnerUid() || ranked[0].uid;
+  const win = ranked.find(r => r.uid === winUid) || ranked[0];
+  const name = (players[win.uid] || {}).name || "(未命名)";
+  const round = cardState.round || 1;
+
+  cardResultEl.classList.remove("hidden");
+  let html = `<div class="big">🏆 <span class="who-win">${escapeHtml(name)}</span> 獲勝　${escapeHtml(win.label)}</div>`;
+  if (round > 1) {
+    html += `<div class="sub">經過 ${round - 1} 輪同分加賽才分出勝負</div>`;
+  } else if (gt === "blackjack" && win.bust) {
+    html += `<div class="sub">全員爆牌，由最接近 21 點的人獲勝</div>`;
+  }
+  cardResultEl.innerHTML = html;
+}
+
+/* ---- 開局發牌（房主在全員準備完成時寫入） ---- */
+function cardDealLogText(st) {
+  const n = Object.keys(st.hands || {}).length;
+  return `🃏 洗牌發牌：${st.decks || 1} 副牌，${n} 位玩家，每人 ${st.per} 張`;
+}
+
+/* ---- 21 點：要牌 / 停牌 ---- */
+async function blackjackAct(hit) {
+  if (!currentRoomId || gameType() !== "blackjack") return;
+  if ((roomMeta.gameState || "lobby") !== "playing") return;
+  if (currentTurnUid() !== myUid) return;
+
+  let ranOutOfCards = false;
+  const res = await runTransaction(ref(db, `rooms/${currentRoomId}/cardState`), (s) => {
+    if (!s || !s.hands || !s.hands[myUid]) return;
+    const stood = s.stood || {};
+    if (stood[myUid]) return;                       // 已經停牌了
+    if (hit) {
+      const c = drawCards(s.hands, 1, s.decks || 1)[0];
+      if (c === undefined) { ranOutOfCards = true; return; }   // 牌堆見底
+      s.hands[myUid] = [...s.hands[myUid], c];
+      if (bjPoints(s.hands[myUid]) > 21) stood[myUid] = true;   // 爆牌自動停
+    } else {
+      stood[myUid] = true;
+    }
+    s.stood = stood;
+    return s;
+  });
+  if (!res.committed) {
+    // 牌真的發完了要講清楚，否則按鈕還亮著卻毫無反應，玩家會以為當機
+    if (hit && ranOutOfCards) alert("牌堆已經發完了，請直接停牌。\n（下一局可以在左側把「用幾副牌」調高）");
+    return;
+  }
+
+  // 從 committed 的結果推導日誌內容。
+  // transaction 的 callback 可能被重複執行，callback 內賦值給外層變數的做法
+  // 會讓日誌顯示被丟棄那一次的牌與點數（例如報出假的「爆牌」）。
+  const after = res.snapshot.val() || {};
+  const myHand = (after.hands || {})[myUid] || [];
+  const pts = bjPoints(myHand);
+  if (hit) {
+    const drawn = myHand[myHand.length - 1];
+    pushLog(`${myName} 要牌 ${cardName(drawn)}　→　${pts} 點${pts > 21 ? " 💥 爆牌" : ""}`);
+  } else {
+    pushLog(`${myName} 停牌（${pts} 點）`);
+  }
+
+  await advanceCardTurn(after);
+}
+
+/* 推進到下一個還沒停牌的玩家；全部停牌就結算 */
+async function advanceCardTurn(state) {
+  const stood = state.stood || {};
+  const ordered = activeOrdered().filter(([uid]) => (state.hands || {})[uid]);
+  if (!ordered.length) return;
+  const base = roomMeta.turnIndex || 0;
+
+  for (let step = 1; step <= ordered.length; step++) {
+    const uid = ordered[(base + step) % ordered.length][0];
+    if (!stood[uid]) {
+      await update(ref(db, `rooms/${currentRoomId}/meta`), { turnIndex: base + step });
+      return;
+    }
+  }
+  await settleCardGame(state);
+}
+
+/* ---- 牛牛 / 比大小：開牌 ---- */
+async function showMyHand() {
+  if (!currentRoomId || !isCardGame() || gameType() === "blackjack") return;
+  if ((roomMeta.gameState || "lobby") !== "playing") return;
+
+  const res = await runTransaction(ref(db, `rooms/${currentRoomId}/cardState`), (s) => {
+    if (!s || !s.hands || !s.hands[myUid]) return;
+    const shown = s.shown || {};
+    if (shown[myUid]) return;
+    shown[myUid] = true;
+    s.shown = shown;
+    return s;
+  });
+  if (!res.committed) return;
+
+  const after = res.snapshot.val() || {};
+  const hand = (after.hands || {})[myUid] || [];
+  const s = scoreHand(gameType(), hand);
+  pushLog(`${myName} 開牌：${hand.map(cardName).join(" ")}　→　${s.label}`);
+
+  // 只看還在房間裡的人，否則有人中途離開就永遠等不到「全員開牌」
+  const seats = Object.keys(after.hands || {}).filter(uid => players[uid]);
+  if (seats.length && seats.every(uid => (after.shown || {})[uid])) await settleCardGame(after);
+}
+
+/* ---- 結算：同分就重新洗牌加賽，只讓同分的人再比一次 ---- */
+const MAX_PLAYOFF_ROUNDS = 12;
+
+async function settleCardGame(state) {
+  const gt = gameType();
+  const ranked = rankHands(gt, state.hands || {});
+  if (!ranked.length) return;   // 全部人都離開了，交給房主中止本局
+
+  const tied = topTied(ranked);
+  const round = state.round || 1;
+  if (tied.length > 1 && round < MAX_PLAYOFF_ROUNDS) {
+    await startPlayoff(state, tied, round);
+    return;
+  }
+
+  const win = ranked[0];
+  const name = (players[win.uid] || {}).name || "(未命名)";
+
+  await update(ref(db), {
+    [`rooms/${currentRoomId}/meta/gameState`]: "finished",
+    [`rooms/${currentRoomId}/meta/winners`]: {
+      [win.uid]: { name, label: win.label, hand: win.hand }
+    }
+  });
+
+  const board = ranked
+    .map((r, i) => `${i + 1}. ${(players[r.uid] || {}).name || "?"}　${r.hand.map(cardName).join(" ")}　${r.label}`)
+    .join("\n");
+  pushLog(`🏆 本局勝者：${name}（${win.label}）\n${board}`);
+}
+
+/* 同分加賽：重新洗一副全新的牌，只發給並列第一的人，其餘玩家本局已出局 */
+async function startPlayoff(state, tied, round) {
+  const uids = tied.map(r => r.uid);
+  const next = makeCardState(uids, round + 1);
+  const names = uids.map(u => (players[u] || {}).name || "?").join("、");
+
+  await update(ref(db), {
+    [`rooms/${currentRoomId}/cardState`]: next,
+    [`rooms/${currentRoomId}/meta/finalists`]: uids,
+    [`rooms/${currentRoomId}/meta/turnIndex`]: roomMeta.turnStart || 0
+  });
+  pushLog(`⚔️ 同分加賽第 ${round} 輪：${names} 同為 ${tied[0].label}，重新洗牌只讓他們再比一次`);
+}
+
+bjHitBtn.addEventListener("click", () => blackjackAct(true));
+bjStandBtn.addEventListener("click", () => blackjackAct(false));
+showHandBtn.addEventListener("click", showMyHand);
+
+/* =========================================================================
+   遊戲三：抽獎（杯子蓋獎品）
+   杯子與獎項的對應「不預先寫進資料庫」——玩家掀開杯子的當下，才用 transaction
+   從還沒開出去的獎項池裡隨機抽一個給他。機率跟事先洗好牌完全一樣，
+   所以開局前沒有任何人（包含房主）能預先知道哪一杯有獎。
+
+   注意：掀開的當下就會把獎項明文寫進 picks，畫面上的「保密到開獎」只是 UI 層的遮蔽。
+   純前端 + Firebase 無法真正隱藏已寫入的資料，想偷看的人開 DevTools 就看得到。
+   終極密碼的 secret 也是同樣情況。這是這個架構的限制，不是可以靠寫法繞過的。
+   ========================================================================= */
+/* 獎項設定：每一列是「名稱 + 積分 + 數量」 */
+function lotPrizeRows() {
+  const rows = roomMeta.lotPrizeRows;
+  if (Array.isArray(rows)) {
+    return rows.filter(r => r && typeof r === "object").map(r => ({
+      name: String(r.name || "獎項").slice(0, 20),
+      points: Math.min(999, Math.max(-999, parseInt(r.points, 10) || 0)),
+      qty: Math.min(40, Math.max(1, parseInt(r.qty, 10) || 1))
+    }));
+  }
+  // 舊房間存的是純文字清單（一行一個，可能帶 |積分），轉成新格式
+  return String(roomMeta.lotPrizes || "").split("\n").map(x => x.trim()).filter(Boolean)
+    .map(line => {
+      const m = line.match(/^(.*?)\s*[|｜]\s*(-?\d+)\s*$/);
+      return m ? { name: m[1].trim() || "獎項", points: parseInt(m[2], 10), qty: 1 }
+               : { name: line, points: 0, qty: 1 };
+    });
+}
+/* 依數量展開成一個一個獎項，杯子就是照這個發 */
+function lotPrizeList() {
+  const out = [];
+  lotPrizeRows().forEach(r => { for (let i = 0; i < r.qty; i++) out.push({ name: r.name, points: r.points }); });
+  return out;
+}
+/* 杯子上限 = 參加人數，這樣每個杯子都一定有人掀，獎不會留在桌上 */
+function maxCupCount() { return Math.max(1, Object.keys(players).length); }
+function lotPickCounts(picks) {
+  const counts = {};
+  Object.values(picks || {}).forEach(p => { counts[p.uid] = (counts[p.uid] || 0) + 1; });
+  return counts;
+}
+function canPickCup() {
+  if (gameType() !== "lottery") return false;
+  if (!currentRoomId || (roomMeta.gameState || "lobby") !== "playing") return false;
+  // 杯子數是照「開局時的參加人數」配的，中途加入的旁觀者不能來搶，
+  // 否則原本被保證有杯子可掀的人會沒得掀
+  const me = players[myUid];
+  if (!me || me.order == null) return false;
+  const limit = roomMeta.lotPickLimit ?? 1;
+  if (limit > 0 && (lotPickCounts(lotState.picks)[myUid] || 0) >= limit) return false;
+  if ((roomMeta.lotPickMode || "turn") === "turn") return currentTurnUid() === myUid;
+  return true;
+}
+
+/* 抽獎會不會結束，原本只在「有人成功掀杯」時才判斷 ——
+   一旦有人中途離開或斷線，就再也沒有事件會重新評估，整局永久停在 playing。
+   改成由房主在每次狀態變動時重新檢查一次，卡住就自動推進或開獎。 */
+async function reviveLotteryIfStuck() {
+  if (!isHost || !currentRoomId) return;
+  if (gameType() !== "lottery") return;
+  if ((roomMeta.gameState || "lobby") !== "playing") return;
+  const total = lotState.total || 0;
+  if (!total) return;
+  const picks = lotState.picks || {};
+  if (Object.keys(picks).length >= total) { await finishLottery(lotState, "所有杯子都被選走了，開獎！"); return; }
+
+  const limit = roomMeta.lotPickLimit ?? 1;
+  const counts = lotPickCounts(picks);
+  const seats = activeOrdered().map(([uid]) => uid);
+  const canStill = (uid) => limit === 0 || (counts[uid] || 0) < limit;
+  const anyone = seats.some(canStill);
+  if (!anyone) { await finishLottery(lotState, "每個人都選過了，開獎！"); return; }
+
+  // 還有人能掀，但輪次卡在一個掀不了的人身上（已達上限或已離開）→ 把輪次推到下一個能掀的人
+  if ((roomMeta.lotPickMode || "turn") === "turn") {
+    const cur = currentTurnUid();
+    if (!cur || !canStill(cur)) await advanceLotteryTurn(lotState);
+  }
+}
+
+/* 遊戲進行中，掀開的杯子只會鎖定變灰（誰掀的看得到、裡面是什麼看不到）；
+   等到全員掀完、狀態變成 finished，才一次把所有杯子翻開。 */
+let lotRevealPlayed = false;    // 本局的最終揭曉動畫是否已經播過
+let lotClaimedSeen = new Set(); // 已經看過的「被鎖定」杯子，用來只對新鎖定的那個播縮放動畫
+let lotFirstSnapshot = true;    // 剛加入／重新整理時，既有的杯子直接呈現，不補播動畫
+let lotJustLocked = null;       // 剛被選走的杯子，短暫維持著讓縮放動畫播得完
+let lotJustLockedTimer = null;
+let lotCupsSig = null;          // 杯子畫面的內容簽章，內容沒變就不重畫（否則動畫會被打斷）
+
+function resetLotteryView() {
+  lotRevealPlayed = false;
+  lotClaimedSeen = new Set();
+  lotFirstSnapshot = true;
+  lotJustLocked = null;
+  lotCupsSig = null;
+  if (lotJustLockedTimer) { clearTimeout(lotJustLockedTimer); lotJustLockedTimer = null; }
+}
+
+function renderLotteryZone() {
+  if (gameType() !== "lottery") return;
+  const state = roomMeta.gameState || "lobby";
+  const started = state === "playing" || state === "finished";
+  const finished = state === "finished";
+  const prizes = lotPrizeList();
+  const cupCount = Math.min(roomMeta.lotCupCount || 6, maxCupCount());   // 與左欄、開始鈕用同一個夾限
+  const total = started ? (lotState.total || cupCount) : cupCount;
+  const picks = lotState.picks || {};
+  const pickedCount = Object.keys(picks).length;
+
+  lotStartBtn.classList.toggle("hidden", !(isHost && state === "lobby"));
+  lotResetBtn.classList.toggle("hidden", !(isHost && state !== "lobby"));
+
+  if (state === "lobby" && (lotRevealPlayed || lotClaimedSeen.size)) resetLotteryView();
+
+  // 只有「剛剛被選走」的那一個杯子播縮放動畫；標記維持 500ms，
+  // 免得中途其他監聽觸發重繪時動畫還沒播完就被清掉
+  const freshClaims = Object.keys(picks).filter(k => !lotClaimedSeen.has(k));
+  if (freshClaims.length === 1 && !finished) {
+    lotJustLocked = freshClaims[0];
+    if (lotJustLockedTimer) clearTimeout(lotJustLockedTimer);
+    lotJustLockedTimer = setTimeout(() => {
+      lotJustLocked = null;
+      lotJustLockedTimer = null;
+      renderLotteryZone();
+    }, 500);
+  }
+  freshClaims.forEach(k => lotClaimedSeen.add(k));
+  if (finished && lotJustLocked) {
+    lotJustLocked = null;
+    if (lotJustLockedTimer) { clearTimeout(lotJustLockedTimer); lotJustLockedTimer = null; }
+  }
+
+  // 全員選完的那一刻，播一次依序翻牌的揭曉動畫（每局只播一次）
+  const playReveal = finished && !lotRevealPlayed && pickedCount > 0;
+  if (playReveal) lotRevealPlayed = true;
+
+  if (!started) {
+    const blankCount = Math.max(0, cupCount - prizes.length);
+    lotHeadlineEl.textContent = "🥤 杯子抽獎";
+    const limit = roomMeta.lotPickLimit ?? 1;
+    const picksAvailable = limit === 0 ? cupCount : Object.keys(players).length * limit;
+    lotSubEl.textContent = prizes.length
+      ? `${cupCount} 杯 ／ ${prizes.length} 個獎 ／ ${blankCount} 個${roomMeta.lotBlank || "銘謝惠顧"}`
+        + (prizes.some(p => p.points) ? `　總積分 ${prizes.reduce((n, p) => n + p.points, 0)}` : "")
+        // 杯子比大家掀得動的次數還多，就會有獎項留在桌上沒發出去
+        + (picksAvailable < cupCount ? `　⚠️ 只掀得動 ${picksAvailable} 杯，可能有獎發不出去` : "")
+      : "房主請先在左側填入獎項清單";
+  } else if (finished) {
+    lotHeadlineEl.textContent = "🏁 開獎！";
+    lotSubEl.textContent = `共掀開 ${pickedCount} / ${total} 杯`;
+  } else {
+    lotHeadlineEl.textContent = "🥤 挑一個杯子";
+    lotSubEl.textContent = `已被選走 ${pickedCount} / ${total}　·　全部掀完才開獎`;
+  }
+
+  // 內容真的有變才重畫杯子。日誌會寫 meta/lastActivityAt，連帶觸發 meta 監聽重繪，
+  // 若無條件重建 DOM，剛開始播的揭曉／縮放動畫會馬上被砍掉
+  const pickable = canPickCup();
+  const sig = JSON.stringify([total, started, finished, pickable, lotJustLocked, picks]);
+  if (sig !== lotCupsSig || playReveal) {
+    lotCupsSig = sig;
+    renderCups(total, picks, started, finished, lotJustLocked, playReveal, pickable);
+  }
+  renderMyLotPrize(picks, finished);
+  renderLotLeftover(total, picks, finished);
+}
+
+function renderCups(total, picks, started, finished, justLocked, playReveal, pickable) {
+  lotCupGridEl.innerHTML = "";
+
+  for (let i = 0; i < total; i++) {
+    const key = String(i);
+    const pick = picks[key];
+    const btn = document.createElement("button");
+    btn.className = "cup";
+    btn.disabled = true;
+
+    const no = document.createElement("span");
+    no.className = "cup-no";
+    no.textContent = i + 1;
+    btn.appendChild(no);
+
+    if (finished && pick) {
+      // 開獎：翻出獎項
+      btn.classList.add("open");
+      if (pick.uid === myUid) btn.classList.add("mine");
+      if (pick.blank) btn.classList.add("blank");
+      if (playReveal) {
+        btn.classList.add("revealing");
+        btn.style.animationDelay = (i * 90) + "ms";
+      }
+      const prize = document.createElement("span");
+      prize.className = "prize";
+      prize.style.whiteSpace = "pre-line";
+      prize.textContent = pick.prize
+        + ((pick.points || 0) !== 0 ? `\n${pick.points > 0 ? "+" : ""}${pick.points} 分` : "");
+      const picker = document.createElement("span");
+      picker.className = "picker";
+      picker.textContent = pick.name || "";
+      btn.appendChild(prize);
+      btn.appendChild(picker);
+    } else {
+      const emoji = document.createElement("span");
+      emoji.className = "emoji";
+      emoji.textContent = "🥤";
+      btn.appendChild(emoji);
+
+      if (pick) {
+        // 已被選走：鎖定變灰，只公布是誰選的，內容保密
+        btn.classList.add("locked");
+        if (pick.uid === myUid) btn.classList.add("mine");
+        if (key === justLocked) btn.classList.add("just-locked");
+        const picker = document.createElement("span");
+        picker.className = "picker";
+        picker.textContent = pick.name || "";
+        btn.appendChild(picker);
+      } else if (finished) {
+        btn.classList.add("unopened");   // 沒人選到的杯子，開獎時維持蓋著
+      } else if (started && pickable) {
+        btn.classList.add("pickable");
+        btn.disabled = false;
+        btn.addEventListener("click", () => pickCup(i));
+      }
+    }
+
+    lotCupGridEl.appendChild(btn);
+  }
+}
+
+function renderMyLotPrize(picks, finished) {
+  const mine = Object.entries(picks)
+    .filter(([, p]) => p.uid === myUid)
+    .sort((a, b) => (a[1].at || 0) - (b[1].at || 0));
+  if (!mine.length) { lotMineEl.classList.add("hidden"); lotMineEl.innerHTML = ""; return; }
+
+  lotMineEl.classList.remove("hidden");
+  if (finished) {
+    const tot = mine.reduce((n, [, p]) => n + (p.points || 0), 0);
+    lotMineEl.innerHTML =
+      `<div class="label">你抽到的</div>` +
+      `<div class="prize">${mine.map(([, p]) => escapeHtml(p.prize)).join("、")}</div>` +
+      (tot !== 0 ? `<div class="label" style="margin-top:4px;">積分 ${tot > 0 ? "+" : ""}${tot}</div>` : "");
+  } else {
+    const nos = mine.map(([k]) => `第 ${Number(k) + 1} 杯`).join("、");
+    lotMineEl.innerHTML =
+      `<div class="label">你選了 ${escapeHtml(nos)}</div>` +
+      `<div class="prize" style="font-size:15px;color:var(--ink-soft);">🤫 等全員掀完才開獎</div>`;
+  }
+}
+
+/* 開獎後，如果還有杯子沒被選走，把沒開出去的獎項列出來 */
+function renderLotLeftover(total, picks, finished) {
+  if (!finished || Object.keys(picks).length >= total) {
+    lotLeftoverEl.classList.add("hidden");
+    lotLeftoverEl.textContent = "";
+    return;
+  }
+  const left = remainingPrizePool(lotState, picks)
+    .filter(i => i !== null)
+    .map(i => ((lotState.prizes || [])[i] || {}).name || "獎項");
+  lotLeftoverEl.classList.remove("hidden");
+  lotLeftoverEl.textContent = left.length
+    ? `沒開出去的獎項：${left.join("、")}`
+    : "沒被選走的杯子裡都是銘謝惠顧";
+}
+
+/* 還沒開出去的獎項池：用「獎項索引」表示，null 代表銘謝惠顧。
+   （獎項現在是物件，不能直接用 indexOf 比對，改存索引才不會被參考相等性坑到） */
+function remainingPrizePool(s, picks) {
+  const pool = [];
+  (s.prizes || []).forEach((_, i) => pool.push(i));
+  while (pool.length < (s.total || 0)) pool.push(null);
+  Object.values(picks || {}).forEach(pk => {
+    const key = pk.blank ? null : (pk.prizeIdx ?? null);
+    const at = pool.indexOf(key);
+    if (at >= 0) pool.splice(at, 1);
+  });
+  return pool;
+}
+
+lotStartBtn.addEventListener("click", async () => {
+  if (!isHost || !currentRoomId || (roomMeta.gameState || "lobby") !== "lobby") return;
+  const prizes = lotPrizeList();
+  if (!prizes.length) { alert("請先在左側「獎項清單」至少填一個獎項（一行一個）"); return; }
+
+  const cap = maxCupCount();
+  let total = Math.min(roomMeta.lotCupCount || 6, cap);
+  if (prizes.length > total) {
+    if (prizes.length > cap) {
+      alert(`獎項有 ${prizes.length} 個，但只有 ${cap} 位玩家、最多只能放 ${cap} 個杯子。\n請減少獎項數量。`);
+      return;
+    }
+    if (!confirm(`獎項有 ${prizes.length} 個，比杯子（${total} 個）還多。要把杯子加到 ${prizes.length} 個嗎？`)) return;
+    total = prizes.length;
+  }
+
+  const updates = {};
+  updates[`rooms/${currentRoomId}/lotteryState`] = {
+    total, prizes, blank: roomMeta.lotBlank || "銘謝惠顧"
+  };
+  updates[`rooms/${currentRoomId}/meta/gameState`] = "playing";
+  updates[`rooms/${currentRoomId}/meta/turnIndex`] = roomMeta.turnStart || 0;
+  updates[`rooms/${currentRoomId}/meta/lotCupCount`] = total;
+
+  // 輪流模式：把中途加入、還沒有順位的人補進排序，否則永遠輪不到他們
+  if ((roomMeta.lotPickMode || "turn") === "turn") {
+    const used = new Set(Object.values(players).map(p => p.order).filter(v => v != null));
+    const nextOrder = () => { let i = 1; while (used.has(i)) i++; used.add(i); return i; };
+    Object.entries(players)
+      .filter(([, p]) => p.order == null)
+      .sort((a, b) => (a[1].joinedAt || 0) - (b[1].joinedAt || 0))
+      .forEach(([uid]) => { updates[`rooms/${currentRoomId}/players/${uid}/order`] = nextOrder(); });
+  }
+
+  await update(ref(db), updates);
+  pushLog(`房主打亂了 ${total} 個杯子，抽獎開始！`);
+});
+
+lotResetBtn.addEventListener("click", async () => {
+  if (!isHost || !currentRoomId) return;
+  if (!confirm("重新設定會清掉這一輪所有已選走的杯子與結果（賽程留在同一局），確定嗎？")) return;
+  await resetRoomForNewRound(false);
+  pushLog("房主重設了抽獎");
+});
+
+async function pickCup(index) {
+  if (!canPickCup()) return;
+  const key = String(index);
+
+  const res = await runTransaction(ref(db, `rooms/${currentRoomId}/lotteryState`), (s) => {
+    if (!s || !s.total) return;
+    const picks = s.picks || {};
+    if (picks[key]) return;                                  // 已被別人搶先掀開
+    if (Object.keys(picks).length >= s.total) return;
+
+    const pool = remainingPrizePool(s, picks);
+    if (!pool.length) return;
+
+    const chosen = pool[Math.floor(Math.random() * pool.length)];   // 獎項索引或 null
+    let won = chosen === null ? null : (s.prizes || [])[chosen];
+    // 舊版把獎項存成字串陣列。直接取 .name 會是 undefined，
+    // 而含 undefined 的物件會被 RTDB 拒絕，導致點杯子完全沒反應
+    if (typeof won === "string") won = { name: won, points: 0 };
+    if (won && typeof won !== "object") won = { name: String(won), points: 0 };
+    picks[key] = {
+      uid: myUid, name: myName, at: Date.now(),
+      prize: won ? won.name : (s.blank || "銘謝惠顧"),
+      points: won ? (won.points || 0) : 0,
+      prizeIdx: chosen === null ? null : chosen,
+      blank: chosen === null
+    };
+    s.picks = picks;
+    return s;
+  });
+  if (!res.committed) { alert("這個杯子已經被掀走了，換一個吧！"); return; }
+
+  const after = res.snapshot.val() || {};
+  const picksAfter = after.picks || {};
+  // 遊戲中的日誌只說「誰選走了哪一杯」，內容留到開獎才公布，免得爆雷
+  pushLog(`${myName} 選走了第 ${index + 1} 杯 🥤`);
+
+  if (Object.keys(picksAfter).length >= (after.total || 0)) {
+    await finishLottery(after, "所有杯子都被選走了，開獎！");
+    return;
+  }
+  if ((roomMeta.lotPickMode || "turn") === "turn") await advanceLotteryTurn(after);
+  else await maybeFinishLottery(after);
+}
+
+/* 開獎：切成 finished，並把完整結果一次寫進日誌 */
+async function finishLottery(after, reason) {
+  await update(ref(db, `rooms/${currentRoomId}/meta`), { gameState: "finished" });
+  pushLog(reason);
+  const lines = Object.entries(after.picks || {})
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([k, p]) => `第 ${Number(k) + 1} 杯　${p.name}　→　${p.blank ? p.prize : "🎁 " + p.prize}` +
+                     ((p.points || 0) !== 0 ? `（${p.points > 0 ? "+" : ""}${p.points} 分）` : ""));
+  if (lines.length) pushLog("🎉 開獎結果\n" + lines.join("\n"));
+}
+
+/* 輪流模式：把輪次推進到「下一個還沒掀滿」的玩家；全部掀滿就開獎 */
+async function advanceLotteryTurn(after) {
+  const ordered = activeOrdered();   // 與 currentTurnUid() 用同一份名單，模數基底才會一致
+  if (!ordered.length) return;
+  const limit = roomMeta.lotPickLimit ?? 1;
+  const counts = lotPickCounts(after.picks);
+  const base = roomMeta.turnIndex || 0;
+
+  for (let step = 1; step <= ordered.length; step++) {
+    const uid = ordered[(base + step) % ordered.length][0];
+    if (limit === 0 || (counts[uid] || 0) < limit) {
+      await update(ref(db, `rooms/${currentRoomId}/meta`), { turnIndex: base + step });
+      return;
+    }
+  }
+  await finishLottery(after, "每個人都選過了，開獎！");
+}
+
+/* 自由搶模式：每個人都選滿了就開獎（不限次數時則等杯子被選完） */
+async function maybeFinishLottery(after) {
+  const limit = roomMeta.lotPickLimit ?? 1;
+  if (limit === 0) return;
+  const counts = lotPickCounts(after.picks);
+  const anyLeft = Object.keys(players).some(uid => (counts[uid] || 0) < limit);
+  if (anyLeft) return;
+  await finishLottery(after, "每個人都選過了，開獎！");
+}
+</script>
+</body>
+</html>
