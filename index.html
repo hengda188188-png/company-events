@@ -580,7 +580,7 @@
         <li><b>🎟️ 賓果</b>：輪流叫號，連成指定條數就贏</li>
         <li><b>🔢 終極密碼</b>：系統藏一個數字，依順位輪流猜，範圍愈縮愈小。可設定成「密碼專家」（猜中的人獲勝、拿積分）或傳統的「猜中者受罰」</li>
         <li><b>🥤 抽獎</b>：房主設定杯子數量與獎項，獎品被打亂蓋在杯子下，玩家各挑一個，全員選完才一次開獎</li>
-        <li><b>🃏 21點</b>：明牌，依順位輪流要牌／停牌，最接近 21 點又沒爆的贏；全員爆牌則最接近 21 的贏</li>
+        <li><b>🃏 21點</b>：<b>只有第一張是明牌</b>，其餘蓋著別人看不到。輪到你就一路要牌到停牌或爆牌為止，才換下一家。最接近 21 點又沒爆的贏；全員爆牌則最接近 21 的贏</li>
         <li><b>🐮 牛牛</b>：每人 5 張暗牌，任 3 張湊成 10 的倍數就成牛，剩 2 張的個位數是牛幾，各自開牌後結算</li>
         <li><b>⚔️ 比大小</b>：每人抽指定張數的暗牌，比總點數，各自開牌後結算</li>
         <li><b>三種牌局每局都會決出唯一勝者</b>：同分的人重新洗牌加賽，只有他們再比一次，直到分出勝負為止</li>
@@ -724,7 +724,7 @@
       <div class="rule-settings hidden" id="blackjackRulesEl">
         <label>起手發幾張</label>
         <input id="bjInitialInput" type="number" min="1" max="3" value="2" />
-        <div class="sched-note">A 自動算 1 或 11，J/Q/K 算 10，超過 21 點爆牌。同點數時比最大單張。</div>
+        <div class="sched-note">A 自動算 1 或 11，J/Q/K 算 10，超過 21 點爆牌。<br>只有第一張是明牌，其餘蓋著；輪到你可以一直要牌，停牌或爆牌才換下一家。</div>
       </div>
 
       <div class="rule-settings hidden" id="niuniuRulesEl">
@@ -935,7 +935,7 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 
 /* ===== 版本號：每次修改都會更新，方便確認 GitHub 上是不是最新版 ===== */
-const APP_VERSION = "v30.3.0";
+const APP_VERSION = "v31.0.0";
 document.getElementById("versionTag").textContent = APP_VERSION;
 console.log("公司-线上小活动", APP_VERSION);
 
@@ -3720,8 +3720,14 @@ function cardsPerPlayer() {
   if (gt === "blackjack") return Math.min(3, Math.max(1, roomMeta.bjInitial ?? 2));
   return Math.min(5, Math.max(1, roomMeta.cmpCards ?? 1));
 }
-/* 21 點的牌是明牌（看得到別人才有得玩）；牛牛與比大小是暗牌，各自開牌後才公開 */
-function cardsAreOpen() { return gameType() === "blackjack"; }
+/* 每一張牌對「我」是否可見。
+   21 點：只有第一張是明牌，其餘蓋著（自己的永遠看得到，開獎時全部翻開）；
+   牛牛／比大小：整手暗牌，本人按下開牌後才公開。 */
+function cardVisibleTo(gt, uid, index, opts) {
+  if (opts.mine || opts.finished) return true;
+  if (gt === "blackjack") return index === 0;   // 只露一張明牌
+  return !!opts.shown;
+}
 
 /* 洗一副全新的牌並發給指定座位。每次呼叫都從完整牌堆重新開始 = 重新洗牌 */
 function makeCardState(seats, round) {
@@ -3746,7 +3752,6 @@ function renderCardZone() {
   const hands = cardState.hands || {};
   const seats = orderedPlayers().map(([uid]) => uid).filter(uid => hands[uid]);
   const finished = state === "finished";
-  const open = cardsAreOpen() || finished;
   const shown = cardState.shown || {};
   const stood = cardState.stood || {};
   const turnUid = usesTurnOrder() ? currentTurnUid() : null;
@@ -3770,7 +3775,9 @@ function renderCardZone() {
     cardStatusEl.textContent = "本局結束，房主可推進到下一局。";
   } else if (gt === "blackjack") {
     const left = seats.filter(uid => !stood[uid]).length;
-    cardStatusEl.textContent = playoffTag + (myTurn ? "輪到你了：要牌還是停牌？" : `還有 ${left} 位玩家沒停牌`);
+    cardStatusEl.textContent = playoffTag + (myTurn
+      ? "輪到你了：可以一直要牌，停牌或爆牌才換下一家"
+      : `還有 ${left} 位玩家沒停牌`);
   } else {
     const left = seats.filter(uid => !shown[uid]).length;
     cardStatusEl.textContent = playoffTag + (canShow
@@ -3789,13 +3796,14 @@ function renderCardZone() {
     const p = players[uid] || {};
     const hand = hands[uid] || [];
     const mine = uid === myUid;
-    const visible = open || shown[uid] || mine;   // 自己的牌永遠看得到
+    const vis = { mine, finished, shown: shown[uid] };
+    const allVisible = hand.every((_, i) => cardVisibleTo(gt, uid, i, vis));
 
     const row = document.createElement("div");
     row.className = "hand-row"
       + (mine ? " me" : "")
       + (uid === turnUid && state === "playing" ? " turn" : "")
-      + ((gt === "blackjack" && stood[uid] && scoreHand(gt, hand).bust) ? " out" : "");
+      + ((gt === "blackjack" && finished && scoreHand(gt, hand).bust) ? " out" : "");
 
     const who = document.createElement("span");
     who.className = "who";
@@ -3804,17 +3812,20 @@ function renderCardZone() {
 
     const cards = document.createElement("span");
     cards.className = "cards";
-    hand.forEach(c => cards.appendChild(buildCard(c, visible)));
+    hand.forEach((c, i) => cards.appendChild(buildCard(c, cardVisibleTo(gt, uid, i, vis))));
     row.appendChild(cards);
 
     const sc = document.createElement("span");
     sc.className = "sc";
-    if (visible) {
+    if (allVisible) {
       const s = scoreHand(gt, hand);
       sc.textContent = s.label;
       if (s.bust) sc.classList.add("bust");
       if (uid === winUid) sc.classList.add("top");
       if (gt === "blackjack" && state === "playing" && stood[uid] && !s.bust) sc.textContent += "・停";
+    } else if (gt === "blackjack") {
+      // 只公布張數與是否已停手；點數與爆牌都要藏到開牌才揭曉，否則蓋牌形同虛設
+      sc.textContent = `${hand.length} 張` + (stood[uid] ? "・停" : "");
     } else {
       sc.textContent = shown[uid] ? "" : "未開牌";
     }
@@ -3909,7 +3920,9 @@ async function blackjackAct(hit) {
     pushLog(`${myName} 停牌（${pts} 點）`);
   }
 
-  await advanceCardTurn(after);
+  // 21 點是「輪到你就一路要到底」：要牌後沒爆就繼續由自己決定，
+  // 只有停牌或爆牌（兩者都會寫入 stood）才輪到下一家。
+  if ((after.stood || {})[myUid]) await advanceCardTurn(after);
 }
 
 /* 推進到下一個還沒停牌的玩家；全部停牌就結算 */
