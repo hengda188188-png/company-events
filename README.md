@@ -206,6 +206,7 @@ A 自動算 1 或 11，J/Q/K 算 10。房主可設定起手發幾張（1–3，�
 | `.nojekyll` | 讓 GitHub Pages 直接輸出檔案，不要走 Jekyll 處理 |
 | `維護指南.md` | **接手維護必讀**：改動流程、推送步驟、排除疑難、踩坑紀錄 |
 | `check.mjs` | 推上線前的自我檢查腳本（`node check.mjs`） |
+| `tests/` | 邏輯測試，126 項驗證（`node tests/run-all.mjs`） |
 
 > 沒有 build 步驟、沒有相依套件。改完 `index.html` 推上 GitHub 就會自動更新。
 >

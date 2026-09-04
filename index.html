@@ -166,6 +166,14 @@
   .st-ready{color:var(--green-dark);font-weight:600;}
   .st-wait{color:var(--coral-dark);}
 
+  /* 941–1047px：三欄還沒收合，但中央欄已經裝不下 34px×10 的號碼盤，
+     會撐破版面壓到右邊日誌。這一段先把號碼縮小，撐過這個區間。 */
+  @media (min-width:941px) and (max-width:1047px){
+    .public-grid{grid-template-columns:repeat(10,28px);gap:4px;}
+    .public-grid .num-btn{width:28px;height:28px;font-size:10px;}
+    .my-card-grid{grid-template-columns:repeat(5,46px);grid-auto-rows:46px;}
+    .my-card-grid .num-btn{width:46px;height:46px;font-size:15px;}
+  }
   @media (max-width:940px){
     .game-wrap{flex-direction:column;align-items:stretch;padding:10px;}
     .col-left,.col-right{width:100%;}
@@ -318,7 +326,9 @@
   .spectate-banner .sub{font-size:12px;color:#c9c2e0;margin-top:4px;line-height:1.5;}
   .col-center.spectating .public-grid,
   .col-center.spectating .my-card-grid,
-  .col-center.spectating .cup-grid{opacity:.55;}
+  .col-center.spectating .cup-grid,
+  .col-center.spectating .card-list,
+  .col-center.spectating .niu-table{opacity:.55;}
 
   /* ===== 積分榜 ===== */
   .score-panel{background:var(--paper-dim);border-radius:10px;border:1px dashed var(--line);padding:8px 9px;cursor:pointer;}
@@ -961,7 +971,7 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 
 /* ===== 版本號：每次修改都會更新，方便確認 GitHub 上是不是最新版 ===== */
-const APP_VERSION = "v32.0.0";
+const APP_VERSION = "v33.0.0";
 document.getElementById("versionTag").textContent = APP_VERSION;
 console.log("公司-线上小活动", APP_VERSION);
 
@@ -1362,7 +1372,6 @@ function showCursorHint(x, y, text) {
 ruleSettingsWrap.addEventListener("click", (e) => {
   if (!currentRoomId) return;
   const state = roomMeta.gameState || "lobby";
-  if (!isHost) { showCursorHint(e.clientX, e.clientY, "只有房主能調整這裡"); return; }
   if (state !== "lobby") { showCursorHint(e.clientX, e.clientY, "遊戲進行中，若要更動請開新一局"); }
 });
 
@@ -1904,10 +1913,11 @@ function maybeClaimHost() {
   const hostNeedsMigration = !hostPlayer || hostPlayer.online !== true;
 
   if (!hostNeedsMigration) {
+    // 這裡只能取消「房主轉移」的倒數。
+    // 加賽、離線跳過、積分延遲那三個計時器與房主轉移無關，先前誤放在這裡，
+    // 導致每一次 players 事件都把它們拆掉（房主在線時這個分支幾乎必經），
+    // 離線自動跳過因此從來沒有真正發動過。
     if (hostMigrationTimer) { clearTimeout(hostMigrationTimer); hostMigrationTimer = null; }
-  if (bingoPlayoffTimer) { clearTimeout(bingoPlayoffTimer); bingoPlayoffTimer = null; }
-  clearOfflineSkip();
-  if (awardDelayTimer) { clearTimeout(awardDelayTimer); awardDelayTimer = null; }
     return;
   }
   if (!iAmOnline) return;
@@ -1940,7 +1950,11 @@ function maybeClaimHost() {
 function clearSubs() {
   unsubs.forEach(u => u && u());
   unsubs = [];
+  // 所有排程中的計時器都要在離開房間時取消，否則會拿著舊房間的時序在新房間動作
   if (hostMigrationTimer) { clearTimeout(hostMigrationTimer); hostMigrationTimer = null; }
+  if (bingoPlayoffTimer) { clearTimeout(bingoPlayoffTimer); bingoPlayoffTimer = null; }
+  if (awardDelayTimer) { clearTimeout(awardDelayTimer); awardDelayTimer = null; }
+  clearOfflineSkip();
 }
 
 /* 把所有「只屬於某一間房、某一局」的本機狀態清乾淨。
@@ -2051,6 +2065,7 @@ function subscribeRoom() {
     syncRuleInputs(roomMeta.gameState || "lobby");
     writeRoundAwards();
     reviveLotteryIfStuck();
+    reviveBlackjackIfStuck();
     maybeAutoSkipOffline();
     maybeClaimHost();
     const mine = players[myUid];
@@ -2095,6 +2110,7 @@ function subscribeRoom() {
     if (cardState.round !== prevRound || !cardState.hands) resetNiuPick();
     renderCardZone();
     renderSpectateBanner();
+    reviveBlackjackIfStuck();
     writeRoundAwards();
   }));
 
@@ -2450,10 +2466,16 @@ function renderScorePanel() {
 }
 
 let scoreOpenUid = null;   // 目前展開明細的玩家
+let scoreModalSig = null;
 function renderScoreModal() {
-  if (scoreModal.classList.contains("hidden")) return;
+  if (scoreModal.classList.contains("hidden")) { scoreModalSig = null; return; }
   const rank = scoreRanking();
   const played = Object.keys(scores || {}).length;
+  // 每寫一則日誌都會更新 meta/lastActivityAt 而觸發重繪。
+  // 內容沒變就別動 DOM，否則捲軸會跳回頂端、展開的明細也會閃一下。
+  const sig = JSON.stringify([rank, played, scoreOpenUid, isHost]);
+  if (sig === scoreModalSig) return;
+  scoreModalSig = sig;
 
   scoreSumEl.innerHTML =
     `<span>賽程進度 第 ${currentRoundNo()} / ${totalRounds()} 局</span>` +
@@ -2697,12 +2719,21 @@ function renderPrizeEditor() {
   const rows = lotPrizeRows();
   const editable = canEditRules();
 
-  // 舊版是「編輯器內有焦點就不重畫」，但點刪除鈕本身就會取得焦點 ——
-  // 於是刪掉一列後畫面不更新，各列事件閉包的索引全部錯開一位，
-  // 造成改到別列、刪錯列、甚至 next[i] 是 undefined 而丟出例外。
-  // 改成比對內容簽章：內容沒變才跳過（打字時不會變，不影響輸入）。
+  // 內容沒變就不重畫
   const sig = JSON.stringify([rows, editable, maxCupCount(), roomMeta.lotCupCount, roomMeta.lotBlank]);
   if (sig === prizeEditorSig) return;
+
+  // 房主正在輸入框裡打字／按數字上下鈕時不要重建 DOM，否則焦點會掉、打到一半的字會消失。
+  // 但這個守衛只能擋「打字」這一種情況，條件要抓得很緊：
+  //   · 焦點必須在 <input> 上 —— 點刪除鈕時焦點在 <button>，那時一定要重畫，
+  //     否則被刪掉的那列還留在畫面上，各列事件閉包的索引會全部錯開一位，
+  //     接著就會改到別列、刪錯列，甚至因為 next[i] 是 undefined 而丟例外
+  //   · 列數不能變 —— 列數變了代表結構已經不同，硬留著舊 DOM 一樣會對到錯的列
+  const active = document.activeElement;
+  const typing = active && active.tagName === "INPUT" && lotPrizeEditor.contains(active);
+  const sameRowCount = lotPrizeEditor.querySelectorAll(".prize-row").length === rows.length;
+  if (typing && sameRowCount) { updatePrizeNote(rows); return; }
+
   prizeEditorSig = sig;
   lotPrizeEditor.innerHTML = "";
   lotAddPrizeBtn.disabled = !editable;
@@ -2779,7 +2810,11 @@ function renderPrizeEditor() {
     lotPrizeEditor.appendChild(el);
   });
 
-  // 獎項數 vs 杯子數 vs 人數的關係，直接寫清楚
+  updatePrizeNote(rows);
+}
+
+/* 下方那行統計文字，單獨抽出來讓「編輯中」也能更新 */
+function updatePrizeNote(rows) {
   const totalPrizes = rows.reduce((n, r) => n + r.qty, 0);
   const totalPts = rows.reduce((n, r) => n + r.points * r.qty, 0);
   const cups = Math.min(roomMeta.lotCupCount || 6, maxCupCount());
@@ -2915,8 +2950,10 @@ lockBtn.addEventListener("click", async () => {
       // 21 點還要留牌給大家補牌，所以多抓一點餘裕
       const per = cardsPerPlayer();
       const decks = deckCount();
+      // 21 點改成「一路要到底」之後，單一玩家可能連抽很多張。
+      // 從 2 點要到 17 點以上平均需要 4~5 張，這裡抓 5 張餘裕才不會讓後手無牌可要。
       const need = list.length * per
-        + (gameType() === "blackjack" ? list.length * 2 : 0)
+        + (gameType() === "blackjack" ? list.length * 5 : 0)
         + (gameType() === "niuniu" ? niuTableCount() : 0);
       if (need > 52 * decks) {
         alert(`${decks} 副牌共 ${decks * 52} 張，${list.length} 人每人 ${per} 張不夠發。\n請減少人數／張數，或在左側把「用幾副牌」調高。`);
@@ -3033,7 +3070,9 @@ function spectateReason() {
   if (!isActivePlayer(myUid)) return "playoff";
   if (isCardGame() && Object.keys(cardState.hands || {}).length && !(cardState.hands || {})[myUid]) return "nodeal";
   const me = players[myUid];
-  if (usesTurnOrder() && (!me || me.order == null)) return "noseat";
+  // 抽獎的自由搶模式沒有輪次，但沒有順位的人一樣不能掀杯（杯數是照開局人數配的），
+  // 所以不能只看 usesTurnOrder()，否則他會對著一排點不動的杯子毫無頭緒
+  if (!me || me.order == null) return "noseat";
   return null;
 }
 
@@ -3151,9 +3190,13 @@ async function skipCurrentPlayer(auto) {
   const uid = currentTurnUid();
   const p = uid && players[uid];
   const gt = gameType();
-  pushLog(auto
-    ? `⏭️ ${p ? p.name : "某位玩家"} 離線太久，系統自動跳過`
-    : `房主跳過了 ${p ? p.name : "離線玩家"}（離線中）`);
+  // 牛牛與比大小沒有輪次，currentTurnUid() 算出來的人跟「誰離線沒開牌」無關，
+  // 拿它來寫日誌會指名錯人，所以這兩種遊戲改由代開牌分支自己記錄
+  if (gt !== "niuniu" && gt !== "compare") {
+    pushLog(auto
+      ? `⏭️ ${p ? p.name : "某位玩家"} 離線太久，系統自動跳過`
+      : `房主跳過了 ${p ? p.name : "離線玩家"}（離線中）`);
+  }
 
   if ((gt === "niuniu" || gt === "compare")) {
     // 把所有離線又還沒開牌的人代為開牌，讓結算得以進行
@@ -3162,7 +3205,16 @@ async function skipCurrentPlayer(auto) {
       const shown = st.shown || {};
       let touched = false;
       Object.keys(st.hands).forEach(u => {
-        if (!shown[u] && (!players[u] || players[u].online !== true)) { shown[u] = true; touched = true; }
+        if (shown[u]) return;
+        if (players[u] && players[u].online === true) return;
+        // 牛牛要連「用桌面哪兩張」一起補上，否則他的手牌只有 3 張，
+        // niuPoints 會回傳 -1，排名比「無牛」還低，等於離線就直接作廢
+        if (gameType() === "niuniu" && Array.isArray(st.table)) {
+          const picks = st.picks || {};
+          if (!picks[u]) picks[u] = niuBestPick(st.hands[u] || [], st.table);
+          st.picks = picks;
+        }
+        shown[u] = true; touched = true;
       });
       if (!touched) return;
       st.shown = shown;
@@ -3170,6 +3222,10 @@ async function skipCurrentPlayer(auto) {
     });
     if (res.committed) {
       const after = res.snapshot.val() || {};
+      const helped = Object.keys(after.hands || {})
+        .filter(u => !players[u] || players[u].online !== true)
+        .map(u => (players[u] || {}).name || "離線玩家");
+      if (helped.length) pushLog(`房主代 ${helped.join("、")} 開牌（離線中）`);
       if (Object.keys(after.hands || {}).every(u => (after.shown || {})[u])) await settleCardGame(after);
     }
     return;
@@ -3194,6 +3250,21 @@ async function skipCurrentPlayer(auto) {
     return;
   }
   await runTransaction(ref(db, `rooms/${currentRoomId}/meta/turnIndex`), (v) => (v || 0) + 1);
+}
+
+/* 21 點的 turnIndex 是累加的整數，用「順位人數」取模。有人中途離開時人數變少，
+   映射會位移到一個早就停牌的人身上 —— 那個人沒有按鈕、其他人也不是自己的回合，
+   而且他還在線上所以「跳過」鈕不會出現，整局就此卡死。這裡由房主負責救回來。 */
+async function reviveBlackjackIfStuck() {
+  if (!isHost || !currentRoomId || gameType() !== "blackjack") return;
+  if ((roomMeta.gameState || "lobby") !== "playing") return;
+  const hands = cardState.hands || {};
+  if (!Object.keys(hands).length) return;
+  const stood = cardState.stood || {};
+  const uid = currentTurnUid();
+  // 輪到的人有牌而且還沒停牌 → 一切正常
+  if (uid && hands[uid] && !stood[uid]) return;
+  await advanceCardTurn(cardState);
 }
 
 /* 離線玩家卡住輪次時自動跳過。
@@ -3332,6 +3403,10 @@ async function forceBingoWinner() {
 function checkWinCondition(lines) {
   if (!currentRoomId) return;
   if (!isActivePlayer(myUid)) { raceRowEl.classList.add("hidden"); return; }
+  // 遊戲開始後才進房的人沒有順位，是旁觀者。他拿到的是一張全新的號碼卡，
+  // 拿去跟已經叫出的一大堆號碼比對，往往一進門就「達標」而終結整局。
+  const me = players[myUid];
+  if (!me || me.order == null) { raceRowEl.classList.add("hidden"); return; }
   const state = roomMeta.gameState || "lobby";
   const threshold = roomMeta.bingoThreshold || 1;
   const mode = roomMeta.winMode || "race";
@@ -3456,8 +3531,13 @@ function buildWinnerBoard(boardNums) {
   return wrap;
 }
 
+let winnersPanelSig = null;
 function renderWinnersPanel() {
   const state = roomMeta.gameState || "lobby";
+  // 同上：內容沒變就不重畫，否則正在驗牌的人會被日誌打斷、卡片自動收合
+  const wSig = JSON.stringify([gameType(), state, roomMeta.winners, roomMeta.winMode]);
+  if (wSig === winnersPanelSig && !winnersPanelEl.classList.contains("hidden")) return;
+  winnersPanelSig = wSig;
   // 終極密碼與抽獎有自己的結果區塊，共用的勝利面板只服務賓果
   if (gameType() !== "bingo" || state !== "finished") {
     winnersPanelEl.classList.add("hidden");
@@ -3590,7 +3670,9 @@ function renderPasswordZone() {
   } else if (hit) {
     pwTipEl.textContent = "本局結束，房主可按左上「開始新的一局」再來一次。";
   } else if (myTurn) {
-    pwTipEl.textContent = `輪到你了！在 ${lo} ～ ${hi} 之間挑一個數字。`;
+    // 正要下決定的人最需要知道「猜中是贏還是輸」，房規已經藏起來了，這裡一定要講
+    pwTipEl.textContent = `輪到你了！在 ${lo} ～ ${hi} 之間挑一個數字 —— `
+      + (hitRole === "win" ? "猜中就獲勝 🏆" : "猜中的人受罰 💀");
   } else {
     pwTipEl.textContent = hitRole === "win"
       ? `誰先猜中誰贏 🏆，範圍會愈縮愈小。`
@@ -3610,8 +3692,11 @@ function renderPasswordZone() {
 }
 
 function renderPasswordGuesses() {
-  if (gameType() !== "password") return;
+  // 不能在這裡 early-return —— 賽程從終極密碼換到別的遊戲時，
+  // meta 事件比 pwGuesses 的 null 事件先到，DOM 就再也不會被清掉，
+  // 之後轉回終極密碼會看到上一局所有人的猜測
   pwGuessListEl.innerHTML = "";
+  if (gameType() !== "password") return;
   const list = Object.values(pwGuesses).sort((a, b) => (a.at || 0) - (b.at || 0));
   if (!list.length) {
     const none = document.createElement("span");
@@ -3864,7 +3949,10 @@ function renderNiuTable(finished) {
     niuTableEl.appendChild(el);
   });
 
-  if (finished || shown[myUid]) {
+  if (!myHand.length) {
+    // 加賽出局或中途加入的人沒有手牌，別叫他去選牌
+    niuPickHintEl.textContent = "你這一局沒有牌，可以看大家怎麼配。";
+  } else if (finished || shown[myUid]) {
     niuPickHintEl.textContent = "";
   } else if (auto) {
     niuPickHintEl.textContent = "系統會自動幫你從桌面挑出最好的兩張，直接按「開牌」即可。";
@@ -4018,7 +4106,13 @@ function renderCardResult(gt, hands, finished, seatCount) {
 /* ---- 開局發牌（房主在全員準備完成時寫入） ---- */
 function cardDealLogText(st) {
   const n = Object.keys(st.hands || {}).length;
-  return `🃏 洗牌發牌：${st.decks || 1} 副牌，${n} 位玩家，每人 ${st.per} 張`;
+  let txt = `🃏 洗牌發牌：${st.decks || 1} 副牌，${n} 位玩家，每人 ${st.per} 張`;
+  // 房規只有房主看得到，牛牛的桌面張數與配牌方式要靠日誌讓所有人知道
+  if (Array.isArray(st.table)) {
+    txt += `；桌面 ${st.table.length} 張公共牌，`
+        + (st.auto === false ? "由玩家自己挑 2 張" : "系統自動配最佳的 2 張");
+  }
+  return txt;
 }
 
 /* ---- 21 點：要牌 / 停牌 ---- */
@@ -4055,11 +4149,12 @@ async function blackjackAct(hit) {
   const after = res.snapshot.val() || {};
   const myHand = (after.hands || {})[myUid] || [];
   const pts = bjPoints(myHand);
+  // 日誌是公開的，不能寫出牌面與點數 —— 否則只露第一張明牌的規則等於白做，
+  // 後手還能靠日誌精算前面每一家的點數。完整牌面留到結算時一次公布。
   if (hit) {
-    const drawn = myHand[myHand.length - 1];
-    pushLog(`${myName} 要牌 ${cardName(drawn)}　→　${pts} 點${pts > 21 ? " 💥 爆牌" : ""}`);
+    pushLog(`${myName} 要了一張（手上 ${myHand.length} 張）` + (pts > 21 ? "　💥 爆牌" : ""));
   } else {
-    pushLog(`${myName} 停牌（${pts} 點）`);
+    pushLog(`${myName} 停牌（手上 ${myHand.length} 張）`);
   }
 
   // 21 點是「輪到你就一路要到底」：要牌後沒爆就繼續由自己決定，
@@ -4340,7 +4435,7 @@ function renderLotteryZone() {
         + (prizes.some(p => p.points) ? `　總積分 ${prizes.reduce((n, p) => n + p.points, 0)}` : "")
         // 杯子比大家掀得動的次數還多，就會有獎項留在桌上沒發出去
         + (picksAvailable < cupCount ? `　⚠️ 只掀得動 ${picksAvailable} 杯，可能有獎發不出去` : "")
-      : "房主請先在左側填入獎項清單";
+      : (isHost ? "請先在左側填入獎項清單" : "等房主設定獎項並開始");
   } else if (finished) {
     lotHeadlineEl.textContent = "🏁 開獎！";
     lotSubEl.textContent = `共掀開 ${pickedCount} / ${total} 杯`;
