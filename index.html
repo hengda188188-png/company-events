@@ -913,15 +913,17 @@ import {
   getAuth, signInAnonymously, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 
-/* ===== Firebase：沿用現有專案 ===== */
+/* ===== Firebase 連線設定（qiyi-studio 專案）=====
+   這段是前端設定，本來就設計成公開的，不是密碼。
+   真正的防護在 Firebase 主控台的 Realtime Database 安全性規則。 */
 const firebaseConfig = {
-  apiKey: "AIzaSyB4IBPbuGxztyzd8E3YTitMoTt8L19MSG0",
-  authDomain: "company-bingo.firebaseapp.com",
-  databaseURL: "https://company-bingo-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "company-bingo",
-  storageBucket: "company-bingo.appspot.com",
-  messagingSenderId: "844173689886",
-  appId: "1:844173689886:web:ac2f1888f542b138861a0f"
+  apiKey: "AIzaSyDrQFofU3zdbrfQTpcT8kugeyc-bs9reUc",
+  authDomain: "company-d826e.firebaseapp.com",
+  databaseURL: "https://company-d826e-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "company-d826e",
+  storageBucket: "company-d826e.firebasestorage.app",
+  messagingSenderId: "742810597790",
+  appId: "1:742810597790:web:b3daa92b59681916797e8f"
 };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
