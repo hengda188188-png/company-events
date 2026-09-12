@@ -4,7 +4,7 @@
 > 內建六種遊戲：**賓果**、**終極密碼**、**21點**、**牛牛**、**比大小**、**杯子抽獎**，
 > 可以排成賽程一路玩下去。
 
-線上遊玩：<https://hengda188188-png.github.io/company-events/>
+線上遊玩：<https://qiyi-studio.github.io/company-events/>
 
 ---
 
@@ -220,7 +220,7 @@ A 自動算 1 或 11，J/Q/K 算 10。房主可設定起手發幾張（1–3，�
 不需要 npm、不需要安裝任何東西。clone 下來之後：
 
 ```bash
-git clone https://github.com/hengda188188-png/company-events.git
+git clone https://github.com/qiyi-studio/company-events.git
 cd company-events
 
 # 起一個本機靜態伺服器，擇一即可
